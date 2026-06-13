@@ -1,0 +1,13 @@
+# The A Line — single-folder deploy (mirrors the lebazone_web / Laravel public-root pattern).
+# Upload this whole folder to Hostinger's public_html and point the domain here:
+# the storefront is served from /public, and the PHP backend from /api.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # /api is the PHP backend — a real folder with its own .htaccess. Serve directly.
+    RewriteRule ^api($|/) - [L]
+
+    # Everything else -> the built storefront in /public.
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>

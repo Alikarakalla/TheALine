@@ -1,19 +1,20 @@
 # Dependencies
 node_modules/
 
-# Build output
+# Build output (the storefront is built into /public, the web root)
+public/
 dist/
 dist-ssr/
 *.local
 
-# Environment / secrets (matches root .env and server/.env)
+# Environment / secrets (matches root .env and api/.env)
 .env
 .env.*
 !.env.example
 
 # Uploaded product images (user content, not source). Keep the folder via .gitkeep.
-server/uploads/*
-!server/uploads/.gitkeep
+api/uploads/*
+!api/uploads/.gitkeep
 
 # Logs
 logs/

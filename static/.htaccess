@@ -1,0 +1,14 @@
+# The A Line storefront — SPA fallback (React Router).
+# Vite copies this file into the build output (public/), which is the web root.
+# It serves index.html for any client-side route so deep links / refreshes work.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Serve real files and directories directly (assets, images, etc.).
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Everything else -> the SPA entry point.
+    RewriteRule ^ index.html [L]
+</IfModule>

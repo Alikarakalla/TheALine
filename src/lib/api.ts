@@ -1,6 +1,7 @@
-// Lightweight client for the PHP API (XAMPP / Apache on :80).
+// Lightweight client for the PHP API. Same origin in production (served at /api);
+// in dev, Vite proxies /api to the local PHP backend (see vite.config.ts).
 export const API_BASE =
-  (import.meta as any).env?.VITE_API_BASE || "http://localhost/lovebag/api";
+  (import.meta as any).env?.VITE_API_BASE || "/api";
 
 const TOKEN_KEY = "lovebag-admin-token";
 const CUSTOMER_TOKEN_KEY = "lovebag-customer-token";
