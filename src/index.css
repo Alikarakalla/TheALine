@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  overflow-x: clip;
+}
+
+body {
+  font-family: "Inter Tight", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Toast auto-dismiss progress bar — pauses while hovering the card. */
+@keyframes toastbar {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+.toast-progress {
+  transform-origin: left center;
+  animation: toastbar var(--toast-dur, 3200ms) linear forwards;
+}
+.toast-card:hover .toast-progress {
+  animation-play-state: paused;
+}
+
+/* Admin login: lighten AuthUI field labels on the dark panel. */
+.admin-dark-fields label {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
