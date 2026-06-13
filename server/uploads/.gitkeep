@@ -1,0 +1,2 @@
+# Keeps the uploads/ directory in git. Uploaded images themselves are ignored
+# (see .gitignore) — they are user content, not source code.

@@ -1,0 +1,17 @@
+# Route everything through the front controller (clean URLs without index.php).
+# No RewriteBase here on purpose: the relative "index.php" target works whether
+# the API lives at /lovebag/api (XAMPP) or /api (Hostinger public_html/api).
+RewriteEngine On
+
+# Some hosts (FastCGI/CGI PHP) drop the Authorization header — re-expose it so
+# admin/customer Bearer tokens reach PHP.
+RewriteCond %{HTTP:Authorization} .
+RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+# Serve real files/dirs directly (e.g. uploaded images).
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Everything else -> index.php (path read from REQUEST_URI).
+RewriteRule ^ index.php [QSA,L]

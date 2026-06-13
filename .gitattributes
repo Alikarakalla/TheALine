@@ -1,0 +1,12 @@
+# Normalize line endings in the repo (silences CRLF/LF warnings on Windows).
+* text=auto
+
+# Treat binary assets as binary (no EOL conversion).
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.ico  binary
+*.woff  binary
+*.woff2 binary

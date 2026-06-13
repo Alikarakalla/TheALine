@@ -6,10 +6,14 @@ dist/
 dist-ssr/
 *.local
 
-# Environment / secrets
+# Environment / secrets (matches root .env and server/.env)
 .env
 .env.*
 !.env.example
+
+# Uploaded product images (user content, not source). Keep the folder via .gitkeep.
+server/uploads/*
+!server/uploads/.gitkeep
 
 # Logs
 logs/
