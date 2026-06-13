@@ -12,6 +12,9 @@ dist-ssr/
 .env.*
 !.env.example
 
+# Local deploy config (SSH host/user) — keep deploy.env.example tracked
+scripts/deploy.env
+
 # Uploaded product images (user content, not source). Keep the folder via .gitkeep.
 api/uploads/*
 !api/uploads/.gitkeep

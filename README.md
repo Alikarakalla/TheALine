@@ -61,28 +61,40 @@ backend reads the rest at runtime from the **same file**.
 | `UPLOAD_URL` | backend | `https://your-domain.com/api/uploads` |
 | `CORS_ORIGINS` | backend | blank (same domain) |
 
-## Deploying to Hostinger (one folder)
+## Deploy from the terminal (build on your PC, push over SSH)
 
-**1. Create the database** — hPanel → Databases → MySQL. Note the name, user, password.
+No File Manager, no FTP. Your computer builds the storefront, then one command ships
+`public/`, `api/`, and the root `.htaccess` to Hostinger over SSH. Your `.env` and your
+uploaded images stay on the server untouched.
 
-**2. Import the structure** — open phpMyAdmin and import
-[`api/sql/schema.sql`](api/sql/schema.sql) (creates all 37 empty tables).
+### One-time setup
 
-**3. Build the storefront** locally:
+**1. Enable SSH** — hPanel → Advanced → SSH Access. Note the **IP, username and port**
+(usually `65002`). (Recommended: add an SSH key there so deploys are passwordless —
+`ssh-keygen -t ed25519`, then paste `~/.ssh/id_ed25519.pub` into hPanel.)
+
+**2. Configure the deploy** — copy the template and fill it in:
 
 ```bash
-npm run build          # outputs the web root into public/
+cp scripts/deploy.env.example scripts/deploy.env   # then edit it (gitignored)
 ```
 
-**4. Upload the whole project folder** into `public_html/` (via File Manager or FTP) —
-`public/`, `api/`, `static/`, `.htaccess`, and your `.env`. The root `.htaccess`
-points the domain at `public/` and routes `/api` to the backend, so you don't move
-anything around. (You can skip `node_modules/`, `src/`, and config files — only
-`public/`, `api/`, `static/`, `.htaccess` and `.env` are needed at runtime.)
+**3. Create the database** — hPanel → Databases → MySQL. Note the DB name, user, password.
 
-**5. Create `.env`** at the project root (`public_html/.env`):
+**4. First deploy** (uploads the files, including `api/sql/schema.sql`):
 
+```bash
+npm run deploy            # = bash scripts/deploy.sh  (run from Git Bash on Windows)
 ```
+
+**5. Set up the server** — SSH in once and finish the install:
+
+```bash
+ssh -p 65002 u123456789@123.45.67.89
+cd public_html
+
+# a) create the ONE .env at the web root
+cat > .env <<'EOF'
 VITE_API_BASE=/api
 DB_HOST=localhost
 DB_NAME=your_db
@@ -90,21 +102,26 @@ DB_USER=your_db_user
 DB_PASS=your_db_password
 JWT_SECRET=paste-a-long-random-string-here
 UPLOAD_URL=https://your-domain.com/api/uploads
+EOF
+
+# b) load the table structure, then bootstrap the admin + settings
+mysql -u your_db_user -p your_db < api/sql/schema.sql
+php api/sql/seed.php       # creates admin@lovebag.com / admin123
 ```
 
-Generate a secret with: `php -r "echo bin2hex(random_bytes(32));"`
+Generate the secret with: `php -r "echo bin2hex(random_bytes(32));"`
 
-**6. Create the admin** — over SSH from `public_html/api`:
+**6. Verify** — visit `https://your-domain.com/api/health` (returns `status: up`), then
+log into `https://your-domain.com/admin` and **change the admin password immediately**.
+
+### Every deploy after that
 
 ```bash
-php sql/seed.php        # creates admin@lovebag.com / admin123 + baseline settings
+npm run deploy
 ```
 
-No SSH? Add the one admin row through phpMyAdmin, or ask for an alternative.
-
-**7. Verify** — visit `https://your-domain.com/api/health` (returns JSON with
-`status: up`). Then log into `https://your-domain.com/admin` and **change the admin
-password immediately**.
+It rebuilds and re-syncs `public/` + `api/` over SSH. The server `.env` and
+`api/uploads/` are never overwritten.
 
 ### Notes
 
