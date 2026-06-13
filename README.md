@@ -84,8 +84,11 @@ cp scripts/deploy.env.example scripts/deploy.env   # then edit it (gitignored)
 **4. First deploy** (uploads the files, including `api/sql/schema.sql`):
 
 ```bash
-npm run deploy            # = bash scripts/deploy.sh  (run from Git Bash on Windows)
+npm run deploy        # Windows: runs scripts/deploy.ps1 (PowerShell)
+                      # macOS/Linux/Git Bash: use  npm run deploy:sh
 ```
+
+You'll be asked for your SSH password (twice, unless you set up a key).
 
 **5. Set up the server** — SSH in once and finish the install:
 
