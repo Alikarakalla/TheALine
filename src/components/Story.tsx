@@ -61,24 +61,40 @@ export default function Story() {
       style={{
         background: "#ffffff",
         position: "relative",
-        height: "220vh",
+        // Mobile: a normal-height section (no 220vh scroll-scrub). Desktop keeps
+        // the pinned scrub stage.
+        height: isMobile ? "auto" : "220vh",
         fontFamily: "'Inter Tight', sans-serif",
       }}
     >
       <div
-        style={{
-          position: "sticky",
-          top: 0,
-          height: "100vh",
-          overflow: "hidden",
-          display: "flex",
-          alignItems: "center",
-        }}
+        style={
+          isMobile
+            ? {
+                position: "relative",
+                overflow: "hidden",
+                padding: "96px 0",
+                display: "flex",
+                alignItems: "center",
+              }
+            : {
+                position: "sticky",
+                top: 0,
+                height: "100vh",
+                overflow: "hidden",
+                display: "flex",
+                alignItems: "center",
+              }
+        }
       >
         {/* Floating parallax bag */}
         <motion.img
           src={asset("baggy-2.png")}
           alt=""
+          initial={isMobile ? { opacity: 0, y: 24 } : false}
+          whileInView={isMobile ? { opacity: 0.5, y: 0 } : undefined}
+          viewport={isMobile ? { once: true, margin: "-80px" } : undefined}
+          transition={isMobile ? { duration: 0.7, ease: "easeOut" } : undefined}
           style={{
             position: "absolute",
             top: isMobile ? "auto" : "50%",
@@ -86,10 +102,16 @@ export default function Story() {
             right: isMobile ? "4%" : "8%",
             width: isMobile ? 190 : 360,
             marginTop: isMobile ? 0 : -180,
-            opacity: isMobile ? 0.5 : 1,
-            y: imgY,
-            rotate: imgRotate,
-            filter: "drop-shadow(0 30px 50px rgba(84,84,84,0.18))",
+            // Desktop: scroll-driven parallax + soft drop-shadow.
+            // Mobile: static, no per-frame transforms, no fill-rate-bound shadow.
+            ...(isMobile
+              ? {}
+              : {
+                  opacity: 1,
+                  y: imgY,
+                  rotate: imgRotate,
+                  filter: "drop-shadow(0 30px 50px rgba(84,84,84,0.18))",
+                }),
             zIndex: 1,
             pointerEvents: "none",
           }}
@@ -176,15 +198,29 @@ export default function Story() {
               maxWidth: 560,
             }}
           >
-            {words.map((w, i) => (
-              <Word
-                key={i}
-                word={w}
-                index={i}
-                total={words.length}
-                progress={scrollYProgress}
-              />
-            ))}
+            {isMobile ? (
+              // One cheap fade for the whole paragraph instead of dozens of
+              // per-word scroll subscriptions firing every frame.
+              <motion.span
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-60px" }}
+                transition={{ duration: 0.7, ease: "easeOut" }}
+                style={{ display: "inline-block" }}
+              >
+                {story.body}
+              </motion.span>
+            ) : (
+              words.map((w, i) => (
+                <Word
+                  key={i}
+                  word={w}
+                  index={i}
+                  total={words.length}
+                  progress={scrollYProgress}
+                />
+              ))
+            )}
           </p>
         </div>
       </div>
