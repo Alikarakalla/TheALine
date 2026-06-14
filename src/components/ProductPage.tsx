@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { motion, AnimatePresence, useSpring } from "framer-motion";
+import { motion, AnimatePresence, useSpring, type PanInfo } from "framer-motion";
 import { useParams, Navigate } from "react-router-dom";
 import { TEXT_COLOR, GLOW_COLOR, ASSET, asset } from "../lib/constants";
 import { productImageFile, getGallery } from "../lib/products";
@@ -16,30 +16,146 @@ import type { Product } from "../lib/products";
 const EASE = [0.22, 1, 0.36, 1] as const;
 const FLIGHT = 0.7;
 
+/* Magnifier-plus icon (inherits color from the button). */
+function MagnifierIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="11" cy="11" r="7" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      <line x1="11" y1="8" x2="11" y2="14" />
+      <line x1="8" y1="11" x2="14" y2="11" />
+    </svg>
+  );
+}
+
+/* Round translucent zoom button overlaid on an image. */
+function ZoomButton({
+  onClick,
+  style,
+}: {
+  onClick: () => void;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      aria-label="Zoom image"
+      style={{
+        position: "absolute",
+        top: 14,
+        right: 14,
+        zIndex: 6,
+        width: 40,
+        height: 40,
+        borderRadius: "50%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "rgba(255,255,255,0.9)",
+        border: "1px solid rgba(0,0,0,0.06)",
+        boxShadow: "0 4px 14px rgba(0,0,0,0.12)",
+        color: TEXT_COLOR,
+        cursor: "pointer",
+        ...style,
+      }}
+    >
+      <MagnifierIcon />
+    </button>
+  );
+}
+
+/* Carousel pagination dots. light=true for a dark backdrop (lightbox). */
+function Dots({
+  count,
+  index,
+  onSelect,
+  light = false,
+}: {
+  count: number;
+  index: number;
+  onSelect: (i: number) => void;
+  light?: boolean;
+}) {
+  if (count <= 1) return null;
+  return (
+    <div
+      style={{
+        position: "absolute",
+        bottom: 14,
+        left: 0,
+        right: 0,
+        display: "flex",
+        justifyContent: "center",
+        gap: 6,
+        zIndex: 6,
+      }}
+    >
+      {Array.from({ length: count }).map((_, i) => (
+        <button
+          key={i}
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect(i);
+          }}
+          aria-label={`Go to image ${i + 1}`}
+          style={{
+            height: 6,
+            width: i === index ? 20 : 6,
+            borderRadius: 999,
+            border: "none",
+            padding: 0,
+            cursor: "pointer",
+            background:
+              i === index
+                ? light
+                  ? "#ffffff"
+                  : TEXT_COLOR
+                : light
+                ? "rgba(255,255,255,0.45)"
+                : "rgba(58,58,58,0.3)",
+            boxShadow: light ? "none" : "0 1px 2px rgba(255,255,255,0.4)",
+            transition: "width 0.25s ease, background 0.25s ease",
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 function Thumb({
   src,
   active,
   onSelect,
   delay = 0,
-  mobile = false,
 }: {
   src: string;
   active: boolean;
   onSelect: () => void;
   delay?: number;
-  mobile?: boolean;
 }) {
   return (
     <motion.button
       onClick={onSelect}
-      initial={mobile ? false : { opacity: 0, x: -12 }}
-      animate={mobile ? undefined : { opacity: 1, x: 0 }}
+      initial={{ opacity: 0, x: -12 }}
+      animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.4, ease: EASE, delay }}
       whileHover={{ scale: 1.06 }}
       style={{
         flex: "0 0 auto",
-        width: mobile ? 58 : 52,
-        height: mobile ? 58 : 64,
+        width: 52,
+        height: 64,
         borderRadius: 4,
         overflow: "hidden",
         cursor: "pointer",
@@ -58,6 +174,211 @@ function Thumb({
       />
     </motion.button>
   );
+}
+
+/* Full-width mobile image carousel: native scroll-snap, dots + zoom. */
+function MobileGallery({
+  images,
+  panel,
+  index,
+  setIndex,
+  onZoom,
+}: {
+  images: string[];
+  panel: string;
+  index: number;
+  setIndex: (i: number) => void;
+  onZoom: () => void;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+
+  // Reflect external index changes (dots / keyboard) into the scroll position.
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    const targetLeft = index * el.clientWidth;
+    if (Math.abs(el.scrollLeft - targetLeft) > 2) {
+      el.scrollTo({ left: targetLeft, behavior: "smooth" });
+    }
+  }, [index]);
+
+  const onScroll = () => {
+    const el = trackRef.current;
+    if (!el) return;
+    const i = Math.round(el.scrollLeft / el.clientWidth);
+    if (i !== index) setIndex(i);
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.45, ease: EASE }}
+      style={{
+        position: "relative",
+        width: "100%",
+        aspectRatio: "1 / 1",
+        background: panel,
+        overflow: "hidden",
+      }}
+    >
+      <style>{`.pg-track::-webkit-scrollbar{display:none}`}</style>
+      <div
+        ref={trackRef}
+        onScroll={onScroll}
+        className="pg-track"
+        style={{
+          display: "flex",
+          width: "100%",
+          height: "100%",
+          overflowX: "auto",
+          overflowY: "hidden",
+          scrollSnapType: "x mandatory",
+          WebkitOverflowScrolling: "touch",
+          scrollbarWidth: "none",
+        }}
+      >
+        {images.map((src) => (
+          <div
+            key={src}
+            style={{ flex: "0 0 100%", width: "100%", height: "100%", scrollSnapAlign: "center" }}
+          >
+            <img
+              src={src}
+              alt=""
+              onClick={onZoom}
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", cursor: "zoom-in" }}
+            />
+          </div>
+        ))}
+      </div>
+      <ZoomButton onClick={onZoom} style={{ top: "auto", bottom: 12 }} />
+      <Dots count={images.length} index={index} onSelect={setIndex} />
+    </motion.div>
+  );
+}
+
+/* Fullscreen image viewer. Swipe (mobile) / arrows (desktop) / dots / Esc. */
+function Lightbox({
+  images,
+  index,
+  setIndex,
+  onClose,
+  name,
+}: {
+  images: string[];
+  index: number;
+  setIndex: (i: number) => void;
+  onClose: () => void;
+  name: string;
+}) {
+  const go = (dir: number) =>
+    setIndex((index + dir + images.length) % images.length);
+  const onDragEnd = (_: unknown, info: PanInfo) => {
+    if (info.offset.x < -70) go(1);
+    else if (info.offset.x > 70) go(-1);
+  };
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.25 }}
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 500,
+        background: "#0e0e0e",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        touchAction: "none",
+      }}
+    >
+      <button
+        onClick={onClose}
+        aria-label="Close"
+        style={{
+          position: "absolute",
+          top: 18,
+          right: 18,
+          zIndex: 3,
+          width: 44,
+          height: 44,
+          borderRadius: "50%",
+          background: "rgba(255,255,255,0.12)",
+          border: "1px solid rgba(255,255,255,0.2)",
+          color: "#fff",
+          fontSize: 20,
+          lineHeight: 1,
+          cursor: "pointer",
+        }}
+      >
+        ✕
+      </button>
+
+      <AnimatePresence initial={false} mode="popLayout">
+        <motion.img
+          key={images[index]}
+          src={images[index]}
+          alt={name}
+          drag={images.length > 1 ? "x" : false}
+          dragConstraints={{ left: 0, right: 0 }}
+          dragElastic={0.2}
+          onDragEnd={onDragEnd}
+          onClick={(e) => e.stopPropagation()}
+          initial={{ opacity: 0, scale: 0.97 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.28, ease: EASE }}
+          style={{
+            width: "92vw",
+            height: "82vh",
+            objectFit: "contain",
+            cursor: images.length > 1 ? "grab" : "default",
+            userSelect: "none",
+            WebkitUserSelect: "none",
+            touchAction: "pan-y",
+          }}
+        />
+      </AnimatePresence>
+
+      {images.length > 1 && (
+        <>
+          <button onClick={(e) => { e.stopPropagation(); go(-1); }} aria-label="Previous" style={navBtn("left")}>
+            ‹
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); go(1); }} aria-label="Next" style={navBtn("right")}>
+            ›
+          </button>
+          <Dots count={images.length} index={index} onSelect={setIndex} light />
+        </>
+      )}
+    </motion.div>
+  );
+}
+
+function navBtn(side: "left" | "right"): React.CSSProperties {
+  return {
+    position: "absolute",
+    [side]: 14,
+    top: "50%",
+    transform: "translateY(-50%)",
+    zIndex: 3,
+    width: 46,
+    height: 46,
+    borderRadius: "50%",
+    background: "rgba(255,255,255,0.12)",
+    border: "1px solid rgba(255,255,255,0.2)",
+    color: "#fff",
+    fontSize: 26,
+    lineHeight: 1,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  };
 }
 
 function Accordion({ title, body }: { title: string; body: string }) {
@@ -119,7 +440,7 @@ function Accordion({ title, body }: { title: string; body: string }) {
 export default function ProductPage() {
   const isMobile = useIsMobile();
   const { id } = useParams();
-  const { open, close, consumeOrigin } = useProductNav();
+  const { close, consumeOrigin } = useProductNav();
   const { products, getById } = useCatalog();
   const product = getById(id);
 
@@ -134,9 +455,11 @@ export default function ProductPage() {
     if (origin && !g.includes(origin.imgSrc)) g.unshift(origin.imgSrc);
     return g;
   }, [product, origin]);
-  const [activeSrc, setActiveSrc] = useState(
-    origin?.imgSrc ?? gallery[0] ?? ""
-  );
+
+  const initialIndex = Math.max(0, gallery.indexOf(origin?.imgSrc ?? gallery[0] ?? ""));
+  const [activeIndex, setActiveIndex] = useState(initialIndex);
+  const activeSrc = gallery[activeIndex] ?? "";
+  const [zoomOpen, setZoomOpen] = useState(false);
 
   const [vp, setVp] = useState({
     w: typeof window !== "undefined" ? window.innerWidth : 1280,
@@ -152,8 +475,7 @@ export default function ProductPage() {
   const [qty, setQty] = useState(1);
 
   // Fully lock the page behind: pin <body> so the document scrollbar disappears
-  // (it reads as its own page, not an overlay) and restore the exact scroll on
-  // close. The product page itself is a fixed element with its own scroll.
+  // and restore the exact scroll on close.
   useEffect(() => {
     const scrollY = window.scrollY;
     const scrollbarW = window.innerWidth - document.documentElement.clientWidth;
@@ -175,7 +497,7 @@ export default function ProductPage() {
     };
   }, []);
 
-  // Per-page SEO: title, description, canonical, Open Graph / Twitter cards.
+  // Per-page SEO.
   useEffect(() => {
     if (!product) return;
     setPageMeta({
@@ -188,43 +510,34 @@ export default function ProductPage() {
     return () => resetPageMeta();
   }, [product]);
 
-  // Keyboard UX: Esc closes, ←/→ moves through the gallery.
+  // Keyboard UX: Esc closes (lightbox first, then page), ←/→ moves the gallery.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-      else if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
-        setActiveSrc((s) => {
-          const idx = gallery.indexOf(s);
-          const next =
-            (idx + (e.key === "ArrowRight" ? 1 : -1) + gallery.length) %
-            gallery.length;
-          return gallery[next] ?? s;
-        });
+      if (e.key === "Escape") {
+        if (zoomOpen) setZoomOpen(false);
+        else onClose();
+      } else if (e.key === "ArrowRight") {
+        setActiveIndex((i) => (i + 1) % gallery.length);
+      } else if (e.key === "ArrowLeft") {
+        setActiveIndex((i) => (i - 1 + gallery.length) % gallery.length);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [gallery, onClose]);
+  }, [gallery, onClose, zoomOpen]);
 
   if (!product) return <Navigate to="/" replace />;
 
   const hasOrigin = !!origin;
 
-  // Target box for the hero image.
-  const target = isMobile
-    ? (() => {
-        const w = vp.w * 0.74;
-        const h = vp.h * 0.42;
-        return { width: w, height: h, left: (vp.w - w) / 2, top: 84 };
-      })()
-    : (() => {
-        const w = Math.min(440, vp.w * 0.42);
-        const h = vp.h * 0.62;
-        const panelW = vp.w * 0.5;
-        return { width: w, height: h, left: (panelW - w) / 2, top: (vp.h - h) / 2 };
-      })();
+  // Desktop hero image target box (the morph lands here).
+  const target = (() => {
+    const w = Math.min(440, vp.w * 0.42);
+    const h = vp.h * 0.62;
+    const panelW = vp.w * 0.5;
+    return { width: w, height: h, left: (panelW - w) / 2, top: (vp.h - h) / 2 };
+  })();
 
-  // Shared-element morph when we know where it was clicked; otherwise fade in.
   const dx = origin ? origin.rect.left - target.left : 0;
   const dy = origin ? origin.rect.top - target.top : 0;
   const sx = origin ? origin.rect.width / target.width : 1;
@@ -243,11 +556,11 @@ export default function ProductPage() {
         transition: { duration: 0.5, ease: EASE },
       };
 
-  // Info entrance — staggered after the image lands.
+  // Info entrance — staggered. No blur on mobile (cheaper) and it appears sooner.
   const block = (i: number) => ({
-    initial: { opacity: 0, y: 18, filter: "blur(6px)" },
-    animate: { opacity: 1, y: 0, filter: "blur(0px)" },
-    transition: { duration: 0.55, ease: EASE, delay: 0.32 + i * 0.07 },
+    initial: { opacity: 0, y: 18, ...(isMobile ? {} : { filter: "blur(6px)" }) },
+    animate: { opacity: 1, y: 0, ...(isMobile ? {} : { filter: "blur(0px)" }) },
+    transition: { duration: 0.55, ease: EASE, delay: (isMobile ? 0.1 : 0.32) + i * 0.07 },
   });
 
   const related = products.filter((p) => p.id !== product.id).slice(0, 3);
@@ -268,55 +581,94 @@ export default function ProductPage() {
         fontFamily: "'Inter Tight', sans-serif",
       }}
     >
-      {/* full site header — navigation, search, cart always available */}
+      {/* full site header */}
       <Header />
 
-      {/* image panel background */}
-      {isMobile ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.4 }}
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: "52vh",
-            background: product.panel,
-          }}
-        />
-      ) : (
-        <motion.div
-          initial={{ scaleX: 0 }}
-          animate={{ scaleX: 1 }}
-          exit={{ scaleX: 0 }}
-          transition={{ duration: 0.6, ease: [0.76, 0, 0.24, 1] }}
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "50%",
-            height: "100%",
-            background: product.panel,
-            transformOrigin: "left",
-            zIndex: 1,
-          }}
-        />
+      {/* desktop image panel background + morph hero + thumbnail rail */}
+      {!isMobile && (
+        <>
+          <motion.div
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: 1 }}
+            exit={{ scaleX: 0 }}
+            transition={{ duration: 0.6, ease: [0.76, 0, 0.24, 1] }}
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              width: "50%",
+              height: "100%",
+              background: product.panel,
+              transformOrigin: "left",
+              zIndex: 1,
+            }}
+          />
+          <motion.div
+            {...imageMotion}
+            style={{
+              position: "fixed",
+              top: target.top,
+              left: target.left,
+              width: target.width,
+              height: target.height,
+              transformOrigin: "top left",
+              borderRadius: 4,
+              overflow: "hidden",
+              zIndex: 10,
+              boxShadow: "0 30px 60px rgba(0,0,0,0.18)",
+            }}
+          >
+            <AnimatePresence initial={false}>
+              <motion.img
+                key={activeSrc}
+                src={activeSrc}
+                alt={product.name}
+                initial={{ opacity: 0, scale: 1.05 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.45, ease: EASE }}
+                style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            </AnimatePresence>
+            <ZoomButton onClick={() => setZoomOpen(true)} />
+          </motion.div>
+          <div
+            style={{
+              position: "fixed",
+              left: 24,
+              top: "50%",
+              transform: "translateY(-50%)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+              zIndex: 20,
+            }}
+          >
+            {gallery.map((src, i) => (
+              <Thumb
+                key={src}
+                src={src}
+                active={i === activeIndex}
+                delay={0.45 + i * 0.06}
+                onSelect={() => setActiveIndex(i)}
+              />
+            ))}
+          </div>
+        </>
       )}
 
-      {/* Back pill — sits just below the fixed header */}
+      {/* Back pill */}
       <button
         onClick={onClose}
         style={{
           position: isMobile ? "absolute" : "fixed",
           top: isMobile ? 64 : 84,
-          left: isMobile ? 20 : 32,
+          left: isMobile ? 16 : 32,
           zIndex: 30,
           display: "flex",
           alignItems: "center",
           gap: 8,
-          background: "rgba(255,255,255,0.6)",
+          background: "rgba(255,255,255,0.7)",
           backdropFilter: "blur(8px)",
           WebkitBackdropFilter: "blur(8px)",
           border: "1px solid rgba(84,84,84,0.15)",
@@ -332,70 +684,7 @@ export default function ProductPage() {
         <span style={{ fontSize: 16, lineHeight: 1 }}>←</span> Back
       </button>
 
-      {/* morphing hero image — the container morphs in; gallery images crossfade inside.
-          fixed (sticky) on desktop split view; absolute (scrolls with content) on mobile. */}
-      <motion.div
-        {...imageMotion}
-        style={{
-          position: isMobile ? "absolute" : "fixed",
-          top: target.top,
-          left: target.left,
-          width: target.width,
-          height: target.height,
-          transformOrigin: "top left",
-          borderRadius: 4,
-          overflow: "hidden",
-          zIndex: 10,
-          boxShadow: "0 30px 60px rgba(0,0,0,0.18)",
-        }}
-      >
-        <AnimatePresence initial={false}>
-          <motion.img
-            key={activeSrc}
-            src={activeSrc}
-            alt={product.name}
-            initial={{ opacity: 0, scale: 1.05 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.45, ease: EASE }}
-            style={{
-              position: "absolute",
-              inset: 0,
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-            }}
-          />
-        </AnimatePresence>
-      </motion.div>
-
-      {/* desktop gallery thumbnails — vertical rail on the panel */}
-      {!isMobile && (
-        <div
-          style={{
-            position: "fixed",
-            left: 24,
-            top: "50%",
-            transform: "translateY(-50%)",
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-            zIndex: 20,
-          }}
-        >
-          {gallery.map((src, i) => (
-            <Thumb
-              key={src}
-              src={src}
-              active={src === activeSrc}
-              delay={0.45 + i * 0.06}
-              onSelect={() => setActiveSrc(src)}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* layout: spacer for image + info */}
+      {/* layout */}
       <div
         style={{
           position: "relative",
@@ -405,59 +694,33 @@ export default function ProductPage() {
           minHeight: "100vh",
         }}
       >
-        {/* spacer where the image floats */}
-        <div
-          style={{
-            flex: isMobile ? "none" : "0 0 50%",
-            height: isMobile ? "52vh" : "auto",
-            pointerEvents: "none",
-          }}
-        />
+        {isMobile ? (
+          <MobileGallery
+            images={gallery}
+            panel={product.panel}
+            index={activeIndex}
+            setIndex={setActiveIndex}
+            onZoom={() => setZoomOpen(true)}
+          />
+        ) : (
+          <div style={{ flex: "0 0 50%", height: "auto", pointerEvents: "none" }} />
+        )}
 
         {/* info column */}
         <div
           style={{
             flex: isMobile ? "none" : "0 0 50%",
-            padding: isMobile ? "32px 24px 56px" : "0 64px",
+            padding: isMobile ? "28px 24px 56px" : "0 64px",
             display: "flex",
             flexDirection: "column",
             justifyContent: "center",
             maxWidth: isMobile ? "100%" : 560,
           }}
         >
-          {/* mobile gallery thumbnails — horizontal strip */}
-          {isMobile && (
-            <motion.div
-              {...block(0)}
-              style={{
-                display: "flex",
-                gap: 8,
-                marginBottom: 22,
-                overflowX: "auto",
-                paddingBottom: 4,
-              }}
-            >
-              {gallery.map((src) => (
-                <Thumb
-                  key={src}
-                  src={src}
-                  active={src === activeSrc}
-                  mobile
-                  onSelect={() => setActiveSrc(src)}
-                />
-              ))}
-            </motion.div>
-          )}
-
           {/* eyebrow */}
           <motion.div
             {...block(0)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              marginBottom: 14,
-            }}
+            style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}
           >
             <span
               style={{
@@ -499,12 +762,7 @@ export default function ProductPage() {
           {/* price */}
           <motion.div
             {...block(2)}
-            style={{
-              fontSize: 22,
-              fontWeight: 500,
-              color: TEXT_COLOR,
-              marginBottom: 22,
-            }}
+            style={{ fontSize: 22, fontWeight: 500, color: TEXT_COLOR, marginBottom: 22 }}
           >
             €{product.price.toFixed(2)}
           </motion.div>
@@ -539,9 +797,6 @@ export default function ProductPage() {
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
               {product.colors.map((c, i) => {
                 const sel = i === color;
-                // Color variants get a swatch; non-colour variants (no hex, e.g.
-                // "Gift wrap: Yes") get a readable text pill instead of an
-                // invisible circle.
                 return c.hex ? (
                   <button
                     key={`${c.name}-${i}`}
@@ -598,20 +853,11 @@ export default function ProductPage() {
                 padding: "0 6px",
               }}
             >
-              <button
-                onClick={() => setQty((q) => Math.max(1, q - 1))}
-                style={qtyBtn}
-              >
+              <button onClick={() => setQty((q) => Math.max(1, q - 1))} style={qtyBtn}>
                 −
               </button>
               <span
-                style={{
-                  width: 26,
-                  textAlign: "center",
-                  fontSize: 15,
-                  fontWeight: 500,
-                  color: TEXT_COLOR,
-                }}
+                style={{ width: 26, textAlign: "center", fontSize: 15, fontWeight: 500, color: TEXT_COLOR }}
               >
                 {qty}
               </span>
@@ -654,6 +900,19 @@ export default function ProductPage() {
           </motion.div>
         </div>
       </div>
+
+      {/* fullscreen image viewer */}
+      <AnimatePresence>
+        {zoomOpen && (
+          <Lightbox
+            images={gallery}
+            index={activeIndex}
+            setIndex={setActiveIndex}
+            onClose={() => setZoomOpen(false)}
+            name={product.name}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
