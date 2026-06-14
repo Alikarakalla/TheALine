@@ -190,11 +190,14 @@ export default function Collection() {
 
   useEffect(() => {
     const unsubProg = scrollYProgress.on("change", (v) => {
-      setCardsOut(v >= 0.52);
-      setCardsVisible(v >= 0.3);
+      const out = v >= 0.52;
+      setCardsOut((cur) => (cur === out ? cur : out));
+      const vis = v >= 0.3;
+      setCardsVisible((cur) => (cur === vis ? cur : vis));
     });
     const unsubEnv = envelopeY.on("change", (v) => {
-      setPhotosAboveFlap(v > 85);
+      const above = v > 85;
+      setPhotosAboveFlap((cur) => (cur === above ? cur : above));
     });
     return () => {
       unsubProg();

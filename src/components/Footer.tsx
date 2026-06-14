@@ -1,4 +1,5 @@
-import { motion, useSpring } from "framer-motion";
+import { useRef } from "react";
+import { motion, useSpring, useInView } from "framer-motion";
 import SerifGlow from "./SerifGlow";
 import { GLOW_COLOR } from "../lib/constants";
 import { useHomepage } from "../context/HomepageContent";
@@ -44,6 +45,10 @@ function MagneticButton() {
 
 export default function Footer() {
   const { footer } = useHomepage();
+  // Only run the marquee's infinite loop while the footer is on screen — it sits
+  // at the very bottom, so otherwise it burns frame budget the whole session.
+  const marqueeRef = useRef<HTMLDivElement>(null);
+  const marqueeInView = useInView(marqueeRef, { margin: "150px" });
   return (
     <footer
       data-tone="dark"
@@ -57,6 +62,7 @@ export default function Footer() {
     >
       {/* Marquee */}
       <div
+        ref={marqueeRef}
         style={{
           borderTop: "1px solid rgba(255,255,255,0.12)",
           borderBottom: "1px solid rgba(255,255,255,0.12)",
@@ -66,8 +72,12 @@ export default function Footer() {
         }}
       >
         <motion.div
-          animate={{ x: ["0%", "-50%"] }}
-          transition={{ duration: 22, repeat: Infinity, ease: "linear" }}
+          animate={marqueeInView ? { x: ["0%", "-50%"] } : { x: "0%" }}
+          transition={
+            marqueeInView
+              ? { duration: 22, repeat: Infinity, ease: "linear" }
+              : { duration: 0 }
+          }
           style={{ display: "inline-flex", alignItems: "center" }}
         >
           {[0, 1].map((dup) => (

@@ -108,8 +108,8 @@ function HeroMobile() {
     >
       {/* Heading */}
       <motion.div
-        initial={{ opacity: 0, filter: "blur(12px)", y: 14 }}
-        animate={{ opacity: 1, filter: "blur(0px)", y: 0 }}
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.7, ease: "easeOut", delay: 0.1 }}
         style={{
           padding: "84px 24px 0",
@@ -195,9 +195,9 @@ function HeroMobile() {
         <motion.img
           src={asset("snap.png")}
           alt=""
-          initial={{ opacity: 0, rotateX: -90, scaleY: 0.2 }}
-          animate={{ opacity: 1, rotateX: 0, scaleY: 1, rotate: -6 }}
-          transition={{ duration: 0.65, delay: 1, ease: [0.22, 1, 0.36, 1] }}
+          initial={{ opacity: 0, scale: 0.85, rotate: -6 }}
+          animate={{ opacity: 1, scale: 1, rotate: -6 }}
+          transition={{ duration: 0.55, delay: 1, ease: [0.22, 1, 0.36, 1] }}
           style={{
             position: "absolute",
             top: "29%",
@@ -205,7 +205,6 @@ function HeroMobile() {
             width: 150,
             zIndex: 8,
             transformOrigin: "top center",
-            transformPerspective: 500,
           }}
         />
 

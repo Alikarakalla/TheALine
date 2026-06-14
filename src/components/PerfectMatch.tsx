@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
+import { motion, useInView } from "framer-motion";
 import SerifGlow from "./SerifGlow";
 import { TEXT_COLOR, asset } from "../lib/constants";
 import { useIsMobile, useViewportWidth } from "../lib/useResponsive";
@@ -44,7 +44,15 @@ export default function PerfectMatch() {
   const pausedRef = useRef(paused);
   pausedRef.current = paused;
 
+  const sectionRef = useRef<HTMLElement>(null);
+  const inView = useInView(sectionRef, { margin: "200px" });
+
+  // The orbit was driven by React state on every animation frame, re-rendering
+  // the whole section ~60x/sec for the life of the page — the main cause of
+  // mobile jank. Now: static ring on mobile (no loop at all), and on desktop the
+  // loop only runs while the section is actually on screen.
   useEffect(() => {
+    if (isMobile || !inView) return;
     let raf = 0;
     const tick = () => {
       if (!pausedRef.current) {
@@ -54,10 +62,11 @@ export default function PerfectMatch() {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [isMobile, inView]);
 
   return (
     <section
+      ref={sectionRef}
       data-tone="light"
       style={{
         background: "#ffffff",
@@ -88,8 +97,8 @@ export default function PerfectMatch() {
 
       {/* Top badge text */}
       <motion.div
-        initial={{ opacity: 0, filter: "blur(8px)", y: 12 }}
-        whileInView={{ opacity: 1, filter: "blur(0px)", y: 0 }}
+        initial={{ opacity: 0, y: 12, ...(isMobile ? {} : { filter: "blur(8px)" }) }}
+        whileInView={{ opacity: 1, y: 0, ...(isMobile ? {} : { filter: "blur(0px)" }) }}
         viewport={{ once: true, margin: "-60px" }}
         transition={{ duration: 0.6, ease: "easeOut" }}
         style={{
@@ -128,8 +137,8 @@ export default function PerfectMatch() {
       >
         {/* Center title */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.9, filter: "blur(10px)" }}
-          whileInView={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+          initial={{ opacity: 0, scale: 0.9, ...(isMobile ? {} : { filter: "blur(10px)" }) }}
+          whileInView={{ opacity: 1, scale: 1, ...(isMobile ? {} : { filter: "blur(0px)" }) }}
           viewport={{ once: true, margin: "-60px" }}
           transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
           style={{
@@ -292,8 +301,8 @@ export default function PerfectMatch() {
           }}
         />
         <motion.p
-          initial={{ opacity: 0, filter: "blur(8px)", x: 16 }}
-          whileInView={{ opacity: 1, filter: "blur(0px)", x: 0 }}
+          initial={{ opacity: 0, x: 16, ...(isMobile ? {} : { filter: "blur(8px)" }) }}
+          whileInView={{ opacity: 1, x: 0, ...(isMobile ? {} : { filter: "blur(0px)" }) }}
           viewport={{ once: true, margin: "-60px" }}
           transition={{ duration: 0.6, ease: "easeOut", delay: 0.2 }}
           style={{

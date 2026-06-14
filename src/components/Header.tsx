@@ -488,9 +488,11 @@ export default function Header() {
 
   useMotionValueEvent(scrollY, "change", (latest) => {
     const prev = scrollY.getPrevious() ?? 0;
-    setScrolled(latest > 40);
+    const s = latest > 40;
+    setScrolled((cur) => (cur === s ? cur : s));
     if (open) return;
-    setHidden(latest > prev && latest > 220);
+    const h = latest > prev && latest > 220;
+    setHidden((cur) => (cur === h ? cur : h));
   });
 
   // Contrast adaptation: a 1px detection line just under the bar reports the
@@ -532,9 +534,15 @@ export default function Header() {
 
   const dark = tone === "dark";
   const fg = dark ? "#FFFFFF" : TEXT_COLOR;
+  // On mobile we drop the backdrop blur (it re-rasterizes the whole bar every
+  // scroll frame), so make the bar more opaque there to keep text legible.
   const barBg = scrolled
     ? dark
-      ? "rgba(17,17,17,0.55)"
+      ? isMobile
+        ? "rgba(17,17,17,0.92)"
+        : "rgba(17,17,17,0.55)"
+      : isMobile
+      ? "rgba(255,255,255,0.92)"
       : "rgba(255,255,255,0.6)"
     : "transparent";
 
@@ -561,13 +569,12 @@ export default function Header() {
             ? "16px 20px"
             : "20px 32px",
           background: barBg,
-          backdropFilter: scrolled ? "blur(14px)" : "none",
-          WebkitBackdropFilter: scrolled ? "blur(14px)" : "none",
+          backdropFilter: scrolled && !isMobile ? "blur(14px)" : "none",
+          WebkitBackdropFilter: scrolled && !isMobile ? "blur(14px)" : "none",
           borderBottom: scrolled
             ? `1px solid ${dark ? "rgba(255,255,255,0.08)" : "rgba(84,84,84,0.1)"}`
             : "1px solid transparent",
-          transition:
-            "padding 0.4s ease, background 0.4s ease, border-color 0.4s ease",
+          transition: "background 0.4s ease, border-color 0.4s ease",
         }}
       >
         {/* logo */}
