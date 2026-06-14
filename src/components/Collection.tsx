@@ -58,11 +58,13 @@ function Photo({
   scrollY,
   cardsOut,
   end,
+  isMobile,
 }: {
   i: number;
   scrollY: MotionValue<number>;
   cardsOut: boolean;
   end: [number, number, number];
+  isMobile: boolean;
 }) {
   const { open } = useProductNav();
   const { products } = useCatalog();
@@ -80,7 +82,7 @@ function Photo({
 
   return (
     <motion.div
-      whileHover={{ rotate: [0, -3, 3, -2, 2, 0] }}
+      whileHover={isMobile ? undefined : { rotate: [0, -3, 3, -2, 2, 0] }}
       transition={{ duration: 0.5, ease: "easeInOut" }}
       onClick={(e) =>
         open(product, e.currentTarget, asset("photo-" + (i + 1) + ".png"))
@@ -165,7 +167,7 @@ export default function Collection() {
   // ~±625px + half a card, so scale the whole stage to fit narrow viewports.
   const endPositions = isMobile ? END_MOBILE : END;
   const stageScale = isMobile
-    ? Math.min(0.66, (vw - 16) / 540)
+    ? Math.min(0.5, (vw - 24) / 700)
     : Math.min(1, (vw - 24) / 1430);
   const { scrollYProgress } = useScroll({
     target: containerRef,
@@ -179,6 +181,9 @@ export default function Collection() {
   );
   const envelopeIn = useTransform(scrollYProgress, [0.6, 0.75], [1, 0]);
   const flapRotate = useTransform(scrollYProgress, [0.2, 0.45], [180, 0]);
+  // Mobile stand-in for the flap's 3D rotateX: a cheap 2D scaleY (no 3D
+  // compositing layer — that 3D layer is what degrades on repeat scrolls).
+  const flapScaleY = useTransform(scrollYProgress, [0.2, 0.45], [-1, 1]);
   // The wrapper lives inside the scaled stage, so its counter-translation is
   // scaled too — divide by stageScale so it fully cancels the stage's drop and
   // the photos stay locked to viewport centre (otherwise they drift down).
@@ -377,9 +382,6 @@ export default function Collection() {
               left: 0,
               width: ENV_W,
               zIndex: 4,
-              transformOrigin: "bottom center",
-              transformPerspective: 1400,
-              rotateX: 0,
               opacity: envelopeIn,
             }}
           />
@@ -407,6 +409,7 @@ export default function Collection() {
                 scrollY={scrollYProgress}
                 cardsOut={cardsOut}
                 end={endPositions[i]}
+                isMobile={isMobile}
               />
             ))}
           </motion.div>
@@ -421,8 +424,11 @@ export default function Collection() {
               height: FLAP_H,
               zIndex: 8,
               transformOrigin: "bottom center",
-              transformPerspective: 1400,
-              rotateX: flapRotate,
+              // Desktop: real 3D flap. Mobile: 2D scaleY stand-in (no 3D layer,
+              // which is what makes repeat scrolls lag on phones).
+              ...(isMobile
+                ? { scaleY: flapScaleY }
+                : { transformPerspective: 1400, rotateX: flapRotate }),
               opacity: envelopeIn,
             }}
           >
