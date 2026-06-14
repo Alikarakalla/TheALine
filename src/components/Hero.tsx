@@ -1,9 +1,51 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import SerifGlow from "./SerifGlow";
-import { TEXT_COLOR, asset } from "../lib/constants";
+import { TEXT_COLOR, GLOW_COLOR, asset } from "../lib/constants";
 import { useIsMobile } from "../lib/useResponsive";
 import { useHomepage } from "../context/HomepageContent";
+
+// Primary hero CTA — champagne pill, routes to the shop.
+function ShopNowButton({
+  delay = 0,
+  style,
+}: {
+  delay?: number;
+  style?: React.CSSProperties;
+}) {
+  const navigate = useNavigate();
+  return (
+    <motion.button
+      onClick={() => navigate("/shop")}
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay }}
+      whileHover={{ scale: 1.04 }}
+      whileTap={{ scale: 0.96 }}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 10,
+        background: GLOW_COLOR,
+        color: "#111111",
+        border: "none",
+        borderRadius: 999,
+        padding: "15px 32px",
+        fontFamily: "'Inter Tight', sans-serif",
+        fontSize: 15.5,
+        fontWeight: 600,
+        letterSpacing: "-0.2px",
+        cursor: "pointer",
+        boxShadow: "0 12px 30px rgba(217,196,154,0.45)",
+        ...style,
+      }}
+    >
+      Shop now
+      <span style={{ fontSize: 18, lineHeight: 1, marginTop: -1 }}>→</span>
+    </motion.button>
+  );
+}
 
 const headingType = {
   fontFamily: "'Inter Tight', sans-serif",
@@ -161,6 +203,11 @@ function HeroMobile() {
           {hero.loveBag}
         </p>
       </motion.div>
+
+      {/* Shop now CTA */}
+      <div style={{ padding: "22px 24px 0", position: "relative", zIndex: 10 }}>
+        <ShopNowButton delay={0.7} />
+      </div>
 
       {/* Model stage with overlaid stickers */}
       <div
@@ -345,6 +392,7 @@ export default function Hero() {
             {hero.tail}
           </motion.span>
         </div>
+        <ShopNowButton delay={1.0} style={{ marginTop: 34 }} />
       </div>
 
       {/* Woman model */}

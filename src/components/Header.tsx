@@ -134,56 +134,72 @@ function NavLink({
   );
 }
 
-function CartPill({ tone }: { tone: Tone }) {
-  const x = useSpring(0, { stiffness: 200, damping: 14 });
-  const y = useSpring(0, { stiffness: 200, damping: 14 });
-  const [hover, setHover] = useState(false);
+function CartButton({ color }: { color: string }) {
   const navigate = useNavigate();
   const { count } = useCart();
-  const dark = tone === "dark";
+  const [hover, setHover] = useState(false);
   return (
-    <motion.button
+    <button
       onClick={() => navigate("/cart")}
-      onMouseMove={(e) => {
-        const r = e.currentTarget.getBoundingClientRect();
-        x.set((e.clientX - (r.left + r.width / 2)) * 0.4);
-        y.set((e.clientY - (r.top + r.height / 2)) * 0.4);
-      }}
       onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => {
-        setHover(false);
-        x.set(0);
-        y.set(0);
-      }}
+      onMouseLeave={() => setHover(false)}
+      aria-label={`Cart, ${count} item${count === 1 ? "" : "s"}`}
       style={{
-        x,
-        y,
+        position: "relative",
+        background: "none",
+        border: "none",
+        padding: 6,
+        cursor: "pointer",
         display: "flex",
         alignItems: "center",
-        gap: 8,
-        padding: "9px 18px",
-        borderRadius: 999,
-        cursor: "pointer",
-        fontFamily: "'Inter Tight', sans-serif",
-        fontSize: 13,
-        fontWeight: 500,
-        border: `1px solid ${dark ? "rgba(255,255,255,0.25)" : "rgba(84,84,84,0.25)"}`,
-        background: hover ? GLOW_COLOR : "transparent",
-        color: hover ? "#111111" : dark ? "#FFFFFF" : TEXT_COLOR,
-        transition: "background 0.3s ease, color 0.3s ease, border-color 0.3s ease",
+        opacity: hover ? 0.6 : 1,
+        transition: "opacity 0.2s ease",
       }}
     >
-      Cart
-      <motion.span
-        key={count}
-        initial={{ scale: 1.45 }}
-        animate={{ scale: 1 }}
-        transition={{ type: "spring", stiffness: 500, damping: 16 }}
-        style={{ opacity: count ? 1 : 0.7, fontWeight: count ? 600 : 500 }}
-      >
-        ({count})
-      </motion.span>
-    </motion.button>
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
+        <path
+          d="M5.5 8.5h13l-1 11h-11l-1-11z"
+          strokeWidth="1.6"
+          strokeLinejoin="round"
+          style={{ stroke: color }}
+        />
+        <path
+          d="M9 8.5V6.8a3 3 0 0 1 6 0v1.7"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          style={{ stroke: color }}
+        />
+      </svg>
+      {count > 0 && (
+        <motion.span
+          key={count}
+          initial={{ scale: 1.5 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 500, damping: 16 }}
+          style={{
+            position: "absolute",
+            top: 1,
+            right: 1,
+            minWidth: 16,
+            height: 16,
+            padding: "0 4px",
+            borderRadius: 999,
+            background: GLOW_COLOR,
+            color: "#111111",
+            fontFamily: "'Inter Tight', sans-serif",
+            fontSize: 10,
+            fontWeight: 700,
+            lineHeight: "16px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxSizing: "border-box",
+          }}
+        >
+          {count}
+        </motion.span>
+      )}
+    </button>
   );
 }
 
@@ -642,8 +658,8 @@ export default function Header() {
               />
             ))}
           <SearchButton color={fg} />
-          {!isMobile && <AccountButton color={fg} />}
-          <CartPill tone={tone} />
+          <AccountButton color={fg} />
+          <CartButton color={fg} />
           <Burger color={fg} onClick={() => setOpen(true)} />
         </div>
       </motion.header>
