@@ -44,6 +44,49 @@ function HeartGlow({ size = 13 }: { size?: number }) {
   );
 }
 
+// Wordmark: "The" + the A-glyph logo + "Line", set in Instrument Serif. The glyph
+// is drawn via a CSS mask tinted to `color`, so it adapts to the header tone
+// exactly like the text. Responsive: larger on desktop, prominent on mobile.
+const LOGO_RATIO = 246 / 218; // brand-a.png is 246×218
+function Brand({ color }: { color: string }) {
+  const isMobile = useIsMobile();
+  const fs = isMobile ? 21 : 27;
+  const logoH = isMobile ? 23 : 30;
+  const txt: React.CSSProperties = {
+    fontFamily: "'Instrument Serif', serif",
+    fontSize: fs,
+    fontWeight: 400,
+    letterSpacing: "0.4px",
+    color,
+    lineHeight: 1,
+    transition: "color 0.4s ease",
+  };
+  return (
+    <span style={{ display: "flex", alignItems: "center", gap: isMobile ? 7 : 9 }}>
+      <span style={txt}>The</span>
+      <span
+        aria-hidden
+        style={{
+          display: "inline-block",
+          width: Math.round(logoH * LOGO_RATIO),
+          height: logoH,
+          background: color,
+          WebkitMaskImage: "url(/brand-a.png)",
+          maskImage: "url(/brand-a.png)",
+          WebkitMaskRepeat: "no-repeat",
+          maskRepeat: "no-repeat",
+          WebkitMaskSize: "contain",
+          maskSize: "contain",
+          WebkitMaskPosition: "center",
+          maskPosition: "center",
+          transition: "background 0.4s ease",
+        }}
+      />
+      <span style={txt}>Line</span>
+    </span>
+  );
+}
+
 function NavLink({
   label,
   color,
@@ -304,17 +347,7 @@ function OverlayMenu({ onClose }: { onClose: () => void }) {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              letterSpacing: "2.5px",
-              color: TEXT_COLOR,
-            }}
-          >
-            THE A LINE
-          </span>
-          <HeartGlow />
+          <Brand color={TEXT_COLOR} />
         </div>
         <button
           onClick={onClose}
@@ -590,18 +623,7 @@ export default function Header() {
             cursor: "pointer",
           }}
         >
-          <span
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              letterSpacing: "2.5px",
-              color: fg,
-              transition: "color 0.4s ease",
-            }}
-          >
-            THE A LINE
-          </span>
-          <HeartGlow />
+          <Brand color={fg} />
         </button>
 
         {/* right cluster */}
