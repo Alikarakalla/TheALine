@@ -70,8 +70,10 @@ export default function PerfectMatch() {
       data-tone="light"
       style={{
         background: "#ffffff",
-        minHeight: "100vh",
-        paddingBottom: 80,
+        // On mobile, don't force full-viewport height — the content is shorter,
+        // which left a big empty gap before the next section.
+        minHeight: isMobile ? "auto" : "100vh",
+        paddingBottom: isMobile ? 36 : 80,
         fontFamily: "'Inter Tight', sans-serif",
         overflow: "visible",
         position: "relative",
