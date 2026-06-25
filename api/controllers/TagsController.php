@@ -3,7 +3,7 @@ class TagsController
 {
     private static function shape(array $t): array
     {
-        return ['id' => (int) $t['id'], 'name' => $t['name'], 'slug' => $t['slug'], 'productCount' => (int) ($t['product_count'] ?? 0)];
+        return ['id' => (int) $t['id'], 'name' => $t['name'], 'slug' => $t['slug'], 'color' => $t['color'] ?? null, 'productCount' => (int) ($t['product_count'] ?? 0)];
     }
     public static function adminIndex(): void
     {
@@ -17,7 +17,7 @@ class TagsController
         $b = Request::body();
         if (empty($b['name'])) Response::error('Name required', 422);
         $slug = Util::uniqueSlug('tags', Util::slugify($b['slug'] ?? $b['name']));
-        Database::run("INSERT INTO tags (name,slug) VALUES (?,?)", [$b['name'], $slug]);
+        Database::run("INSERT INTO tags (name,slug,color) VALUES (?,?,?)", [$b['name'], $slug, $b['color'] ?? null]);
         Response::created(self::shape(Database::one("SELECT *,0 product_count FROM tags WHERE id=?", [Database::lastId()])));
     }
     public static function update(array $p): void
@@ -26,7 +26,11 @@ class TagsController
         $id = (int) $p['id'];
         $b = Request::body();
         if (empty($b['name'])) Response::error('Name required', 422);
-        Database::run("UPDATE tags SET name=?, slug=? WHERE id=?", [$b['name'], Util::uniqueSlug('tags', Util::slugify($b['name']), $id), $id]);
+        $set = ["name=?", "slug=?"];
+        $args = [$b['name'], Util::uniqueSlug('tags', Util::slugify($b['name']), $id)];
+        if (array_key_exists('color', $b)) { $set[] = "color=?"; $args[] = $b['color'] ?: null; }
+        $args[] = $id;
+        Database::run("UPDATE tags SET " . implode(',', $set) . " WHERE id=?", $args);
         Response::ok(self::shape(Database::one("SELECT *,0 product_count FROM tags WHERE id=?", [$id])));
     }
     public static function destroy(array $p): void

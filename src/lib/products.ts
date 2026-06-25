@@ -2,11 +2,50 @@ export type Swatch = { name: string; hex: string };
 
 export type Badge = "New" | "Bestseller" | "Limited";
 
+/** A category a product is filed under (from the API). */
+export type CategoryRef = { id: number; name: string; slug: string };
+
+/** A tag (from the API). `color` is an optional badge background. */
+export type TagRef = { id: number; name: string; slug: string; color?: string | null };
+
+/** One selectable option within an attribute (e.g. Color → Beige #d8c7a8). */
+export type VariantOptionRef = { id: number; value: string; hex?: string | null };
+/** A variant axis the product varies on (Color, Size, …) with its options. */
+export type ProductAttribute = { id: number; name: string; slug: string; options: VariantOptionRef[] };
+/** A concrete purchasable combination (e.g. Beige / L) with its own price/stock. */
+export type ProductVariant = {
+  id: number;
+  sku?: string | null;
+  name: string;
+  /** Price override; null/undefined = use the product's base price. */
+  price?: number | null;
+  compareAtPrice?: number | null;
+  stock: number;
+  /** Primary variant image (first of `images`). */
+  image?: string | null;
+  /** Per-variant gallery shown when this combination is selected. */
+  images?: string[];
+  status: string;
+  /** The option ids that define this combination (one per attribute). */
+  optionIds: number[];
+};
+
 export type Product = {
   id: string;
   name: string;
   price: number;
+  /** Primary category name (first of `categories`) — kept for display back-compat. */
   category: string;
+  /** Every category this product belongs to (empty for the offline seed). */
+  categories?: CategoryRef[];
+  /** Tags assigned to the product (each may carry a badge colour). */
+  tags?: TagRef[];
+  /** Optional "was" price for a base-level discount badge. */
+  compareAtPrice?: number | null;
+  /** Variant axes (Color, Size…) — present on API products that use variants. */
+  attributes?: ProductAttribute[];
+  /** Purchasable combinations across the attributes. */
+  variants?: ProductVariant[];
   /** soft background tone for the product-page image panel */
   panel: string;
   colors: Swatch[];

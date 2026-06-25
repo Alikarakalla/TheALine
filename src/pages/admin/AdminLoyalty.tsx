@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence } from "framer-motion";
-import { TEXT_COLOR, GLOW_COLOR } from "../../lib/constants";
+import { TEXT_COLOR } from "../../lib/constants";
+import { INK } from "./ui";
 import { apiGet, apiSend } from "../../lib/api";
 import { useToast } from "../../context/Toast";
-import { AdminHeader, Modal, ui } from "./ui";
+import { AdminHeader, Modal, ui, useConfirm, MUTED } from "./ui";
 import { Field, AuthButton } from "../../components/AuthUI";
 
 const money = (n: number) => `€${n.toFixed(0)}`;
 
 export default function AdminLoyalty() {
   const { show } = useToast();
+  const confirm = useConfirm();
   const [tab, setTab] = useState<"tiers" | "rewards" | "members">("tiers");
   const [tiers, setTiers] = useState<any[]>([]);
   const [rewards, setRewards] = useState<any[]>([]);
@@ -44,7 +46,7 @@ export default function AdminLoyalty() {
   };
 
   const tabBtn = (id: typeof tab, label: string) => (
-    <button onClick={() => setTab(id)} style={{ background: tab === id ? GLOW_COLOR : "transparent", color: tab === id ? "#111" : TEXT_COLOR, border: "none", borderRadius: 999, padding: "9px 18px", cursor: "pointer", fontFamily: "'Inter Tight', sans-serif", fontSize: 13.5, fontWeight: tab === id ? 600 : 400 }}>{label}</button>
+    <button onClick={() => setTab(id)} style={{ background: tab === id ? INK : "transparent", color: tab === id ? "#fff" : TEXT_COLOR, border: "none", borderRadius: 999, padding: "9px 18px", cursor: "pointer", fontFamily: "'Inter Tight', sans-serif", fontSize: 13.5, fontWeight: tab === id ? 600 : 400 }}>{label}</button>
   );
 
   return (
@@ -83,7 +85,7 @@ export default function AdminLoyalty() {
                 </div>
                 <span style={{ fontSize: 13.5, fontWeight: 600, color: TEXT_COLOR }}>{r.cost} pts</span>
                 <button onClick={() => { setRf({ label: r.label, description: r.description || "", cost: r.cost, kind: r.kind, value: r.value ?? "" }); setRewardModal({ editing: r }); }} style={ui.linkBtn}>Edit</button>
-                <button onClick={async () => { await apiSend("DELETE", `admin/loyalty/rewards/${r.id}`); loadRewards(); }} style={{ ...ui.linkBtn, color: "#c0563f" }}>Delete</button>
+                <button onClick={async () => { if (!(await confirm({ title: `Delete “${r.label}”?`, message: "This reward is removed from the catalog. This can’t be undone.", confirmLabel: "Delete reward" }))) return; await apiSend("DELETE", `admin/loyalty/rewards/${r.id}`); loadRewards(); }} style={{ ...ui.linkBtn, color: MUTED }}>Delete</button>
               </div>
             ))}
           </div>

@@ -1,9 +1,8 @@
 import { useRef, useState, useEffect } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import SerifGlow from "./SerifGlow";
-import { asset } from "../lib/constants";
+import { asset, PAGE_MAX } from "../lib/constants";
 import { useIsMobile } from "../lib/useResponsive";
-import { getProduct } from "../lib/products";
 import { useProductNav } from "../context/ProductNav";
 import { useCatalog } from "../context/Catalog";
 import { useHomepage } from "../context/HomepageContent";
@@ -22,10 +21,10 @@ export default function Lookbook() {
   const { open } = useProductNav();
   const { products } = useCatalog();
   const { lookbook: lb } = useHomepage();
+  const items = products; // every real product, scrolled horizontally
   const CARD_W = isMobile ? 264 : 440;
   const CARD_H = isMobile ? 360 : 560;
   const GAP = isMobile ? 18 : 36;
-  const SIDE_PAD = isMobile ? 24 : 80;
 
   const ref = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({
@@ -33,20 +32,35 @@ export default function Lookbook() {
     offset: ["start start", "end end"],
   });
 
-  // Measure how far the track must travel so the last card clears the viewport.
+  // Side padding that matches the shared 1440 container edge so the title, hint
+  // and first card line up with the header. Measured here because the scroll
+  // distance depends on it.
+  const [edge, setEdge] = useState(isMobile ? 24 : 80);
   const [distance, setDistance] = useState(0);
   useEffect(() => {
     const measure = () => {
-      const trackWidth =
-        SLIDES.length * CARD_W + (SLIDES.length - 1) * GAP + SIDE_PAD * 2;
-      setDistance(Math.max(0, trackWidth - window.innerWidth));
+      // clientWidth excludes the scrollbar, matching the CSS `100%` the header
+      // and hero use — so the title/cards line up to the same pixel.
+      const vw = document.documentElement.clientWidth || window.innerWidth;
+      const e = isMobile
+        ? 24
+        : Math.round(
+            Math.max(0, (vw - PAGE_MAX) / 2) + Math.min(44, Math.max(24, vw * 0.04))
+          );
+      setEdge(e);
+      const count = Math.max(1, items.length);
+      const trackWidth = count * CARD_W + (count - 1) * GAP + e * 2;
+      setDistance(Math.max(0, trackWidth - vw));
     };
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, [CARD_W, GAP, SIDE_PAD]);
+  }, [CARD_W, GAP, isMobile, items.length]);
 
   const x = useTransform(scrollYProgress, [0, 1], [0, -distance]);
+
+  // No products → hide the lookbook.
+  if (!items.length) return null;
 
   return (
     <section
@@ -79,7 +93,7 @@ export default function Lookbook() {
           style={{
             position: "absolute",
             top: isMobile ? 40 : 64,
-            left: SIDE_PAD,
+            left: edge,
             zIndex: 20,
             display: "flex",
             alignItems: "baseline",
@@ -114,7 +128,7 @@ export default function Lookbook() {
           style={{
             position: "absolute",
             top: isMobile ? 96 : 78,
-            right: SIDE_PAD,
+            right: edge,
             zIndex: 20,
             fontSize: isMobile ? 10 : 11,
             fontWeight: 600,
@@ -130,14 +144,16 @@ export default function Lookbook() {
           style={{
             display: "flex",
             gap: GAP,
-            padding: `0 ${SIDE_PAD}px`,
+            padding: `0 ${edge}px`,
             x,
             willChange: "transform",
           }}
         >
-          {SLIDES.map((s, i) => (
+          {items.map((p, i) => {
+            const img = p.images?.[0] || asset(SLIDES[i % SLIDES.length].img);
+            return (
             <motion.div
-              key={s.img}
+              key={p.id}
               whileHover={{ scale: 1.03 }}
               transition={{ type: "spring", stiffness: 200, damping: 22 }}
               style={{
@@ -148,9 +164,7 @@ export default function Lookbook() {
               }}
             >
               <div
-                onClick={(e) =>
-                  open(products[i] ?? getProduct(s.name), e.currentTarget, asset(s.img))
-                }
+                onClick={(e) => open(p, e.currentTarget, img)}
                 style={{
                   width: CARD_W,
                   height: CARD_H,
@@ -160,8 +174,8 @@ export default function Lookbook() {
                 }}
               >
                 <img
-                  src={asset(s.img)}
-                  alt={products[i]?.name ?? s.name}
+                  src={img}
+                  alt={p.name}
                   style={{
                     width: "100%",
                     height: "100%",
@@ -186,7 +200,7 @@ export default function Lookbook() {
                     color: "#FFFFFF",
                   }}
                 >
-                  {products[i]?.name ?? s.name}
+                  {p.name}
                 </span>
                 <span
                   style={{
@@ -195,7 +209,7 @@ export default function Lookbook() {
                     color: "rgba(255,255,255,0.5)",
                   }}
                 >
-                  {products[i]?.category ?? s.tag}
+                  {p.category}
                 </span>
               </div>
               {/* index numeral */}
@@ -213,7 +227,8 @@ export default function Lookbook() {
                 ({String(i + 1).padStart(2, "0")})
               </span>
             </motion.div>
-          ))}
+            );
+          })}
         </motion.div>
       </div>
     </section>

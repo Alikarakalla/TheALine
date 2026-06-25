@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import Header from "../components/Header";
 import SerifGlow from "../components/SerifGlow";
 import ProductCard from "../components/ProductCard";
-import { TEXT_COLOR, GLOW_COLOR } from "../lib/constants";
+import { TEXT_COLOR, GLOW_COLOR, PAGE_MAX, PAGE_PAD } from "../lib/constants";
 import { useIsMobile } from "../lib/useResponsive";
-import { useCatalog } from "../context/Catalog";
+import { useCatalog, type CategoryNode } from "../context/Catalog";
+import { indexBySlug, productInCategories } from "../lib/categoryTree";
 import { setPageMeta, resetPageMeta } from "../lib/meta";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -120,6 +122,77 @@ function SortDropdown({
 
 /* ----------------------------------------------------------- filter panel */
 
+/** Collect every slug in a tree (for the default-expanded set). */
+const allSlugs = (nodes: CategoryNode[]): string[] =>
+  nodes.flatMap((n) => [n.slug, ...allSlugs(n.children || [])]);
+
+/** Recursive, collapsible category picker. Selecting a parent matches all of
+ *  its descendants too (handled by the page-level filter). */
+function CategoryTreeFilter({
+  nodes,
+  selected,
+  onToggle,
+}: {
+  nodes: CategoryNode[];
+  selected: string[];
+  onToggle: (slug: string) => void;
+}) {
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set(allSlugs(nodes)));
+  const toggleExpand = (slug: string) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(slug) ? next.delete(slug) : next.add(slug);
+      return next;
+    });
+
+  const renderNode = (n: CategoryNode, depth: number) => {
+    const kids = n.children || [];
+    const open = expanded.has(n.slug);
+    return (
+      <div key={n.id}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, paddingLeft: depth * 14 }}>
+          {kids.length ? (
+            <button
+              onClick={() => toggleExpand(n.slug)}
+              aria-label={open ? "Collapse" : "Expand"}
+              style={{ background: "none", border: "none", padding: 0, cursor: "pointer", width: 14, color: "rgba(84,84,84,0.55)", lineHeight: 1 }}
+            >
+              <motion.span animate={{ rotate: open ? 90 : 0 }} style={{ display: "inline-block", fontSize: 10 }}>
+                ▸
+              </motion.span>
+            </button>
+          ) : (
+            <span style={{ width: 14, flexShrink: 0 }} />
+          )}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <Check label={n.name} checked={selected.includes(n.slug)} onChange={() => onToggle(n.slug)} />
+          </div>
+          {n.totalCount > 0 && (
+            <span style={{ fontSize: 11.5, color: "rgba(84,84,84,0.4)", flexShrink: 0 }}>{n.totalCount}</span>
+          )}
+        </div>
+        {kids.length > 0 && (
+          <AnimatePresence initial={false}>
+            {open && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2, ease: EASE }}
+                style={{ overflow: "hidden", display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}
+              >
+                {kids.map((k) => renderNode(k, depth + 1))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        )}
+      </div>
+    );
+  };
+
+  return <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{nodes.map((n) => renderNode(n, 0))}</div>;
+}
+
 function FilterPanel({
   cats,
   colors,
@@ -135,22 +208,22 @@ function FilterPanel({
   onToggleColor: (v: string) => void;
   onToggleBucket: (v: string) => void;
 }) {
-  const { categories, colors: allColors } = useCatalog();
+  const { categories, categoryTree, colors: allColors } = useCatalog();
+  const hasTree = categoryTree.length > 0;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 30 }}>
       {/* category */}
       <div>
         <FilterTitle>Category</FilterTitle>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {categories.map((c) => (
-            <Check
-              key={c}
-              label={c}
-              checked={cats.includes(c)}
-              onChange={() => onToggleCat(c)}
-            />
-          ))}
-        </div>
+        {hasTree ? (
+          <CategoryTreeFilter nodes={categoryTree} selected={cats} onToggle={onToggleCat} />
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {categories.map((c) => (
+              <Check key={c} label={c} checked={cats.includes(c)} onChange={() => onToggleCat(c)} />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* color */}
@@ -295,12 +368,18 @@ function Check({
 
 export default function Shop() {
   const isMobile = useIsMobile();
-  const { products } = useCatalog();
+  const { products, categoryTree } = useCatalog();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [cats, setCats] = useState<string[]>([]);
   const [colors, setColors] = useState<string[]>([]);
   const [buckets, setBuckets] = useState<string[]>([]);
   const [sort, setSort] = useState("featured");
   const [drawer, setDrawer] = useState(false);
+
+  // In tree mode `cats` holds category slugs; without a tree (offline seed) it
+  // falls back to category names.
+  const hasTree = categoryTree.length > 0;
+  const bySlug = useMemo(() => indexBySlug(categoryTree), [categoryTree]);
 
   useEffect(() => {
     setPageMeta({
@@ -312,9 +391,21 @@ export default function Shop() {
     return () => resetPageMeta();
   }, []);
 
+  // Preselect a category from the URL (?category=slug), e.g. from the header
+  // menu. Runs once the tree is available and the slug resolves to a category.
+  useEffect(() => {
+    const slug = searchParams.get("category");
+    if (slug && hasTree && bySlug.has(slug)) setCats([slug]);
+  }, [searchParams, hasTree, bySlug]);
+
   const results = useMemo(() => {
     let list = products.filter((p) => {
-      if (cats.length && !cats.includes(p.category)) return false;
+      if (cats.length) {
+        const inCat = hasTree
+          ? productInCategories(p, cats, bySlug)
+          : cats.includes(p.category);
+        if (!inCat) return false;
+      }
       if (colors.length && !p.colors.some((c) => colors.includes(c.name)))
         return false;
       if (
@@ -330,10 +421,23 @@ export default function Shop() {
     else if (sort === "name")
       list = [...list].sort((a, b) => a.name.localeCompare(b.name));
     return list;
-  }, [products, cats, colors, buckets, sort]);
+  }, [products, cats, colors, buckets, sort, hasTree, bySlug]);
+
+  // Drop the ?category= param so a cleared/removed category filter doesn't get
+  // re-applied from the URL on the next render.
+  const dropCategoryParam = () => {
+    if (searchParams.has("category")) {
+      searchParams.delete("category");
+      setSearchParams(searchParams, { replace: true });
+    }
+  };
 
   const activeChips = [
-    ...cats.map((c) => ({ kind: "cat" as const, value: c, label: c })),
+    ...cats.map((c) => ({
+      kind: "cat" as const,
+      value: c,
+      label: hasTree ? bySlug.get(c)?.name ?? c : c,
+    })),
     ...colors.map((c) => ({ kind: "color" as const, value: c, label: c })),
     ...buckets.map((b) => ({
       kind: "bucket" as const,
@@ -345,10 +449,13 @@ export default function Shop() {
     setCats([]);
     setColors([]);
     setBuckets([]);
+    dropCategoryParam();
   };
   const removeChip = (kind: string, value: string) => {
-    if (kind === "cat") setCats((a) => a.filter((x) => x !== value));
-    else if (kind === "color") setColors((a) => a.filter((x) => x !== value));
+    if (kind === "cat") {
+      setCats((a) => a.filter((x) => x !== value));
+      dropCategoryParam();
+    } else if (kind === "color") setColors((a) => a.filter((x) => x !== value));
     else setBuckets((a) => a.filter((x) => x !== value));
   };
 
@@ -375,8 +482,8 @@ export default function Shop() {
       {/* title */}
       <div
         style={{
-          padding: isMobile ? "110px 24px 24px" : "150px 64px 30px",
-          maxWidth: 1280,
+          padding: isMobile ? `110px ${PAGE_PAD} 24px` : `150px ${PAGE_PAD} 30px`,
+          maxWidth: PAGE_MAX,
           margin: "0 auto",
         }}
       >
@@ -434,9 +541,9 @@ export default function Shop() {
       >
         <div
           style={{
-            maxWidth: 1280,
+            maxWidth: PAGE_MAX,
             margin: "0 auto",
-            padding: isMobile ? "12px 24px" : "16px 64px",
+            padding: isMobile ? `12px ${PAGE_PAD}` : `16px ${PAGE_PAD}`,
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
@@ -490,9 +597,9 @@ export default function Shop() {
       {/* body */}
       <div
         style={{
-          maxWidth: 1280,
+          maxWidth: PAGE_MAX,
           margin: "0 auto",
-          padding: isMobile ? "24px 24px 80px" : "40px 64px 100px",
+          padding: isMobile ? `24px ${PAGE_PAD} 80px` : `40px ${PAGE_PAD} 100px`,
           display: "flex",
           gap: 48,
           alignItems: "flex-start",

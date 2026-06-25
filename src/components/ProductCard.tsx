@@ -7,6 +7,15 @@ import FavoriteButton from "./FavoriteButton";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
+/** Pick black or white text for legibility on a given hex background. */
+function readableOn(hex?: string | null): string {
+  if (!hex) return "#fff";
+  const h = hex.replace("#", "");
+  if (h.length < 6) return "#fff";
+  const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.62 ? "#111" : "#fff";
+}
+
 function Highlight({ text, q }: { text: string; q?: string }) {
   const t = (q || "").trim();
   if (!t) return <>{text}</>;
@@ -107,6 +116,35 @@ const ProductCard = forwardRef<HTMLDivElement, ProductCardProps>(function Produc
         {showFavorite && (
           <div style={{ position: "absolute", top: 12, right: 12 }} onClick={(e) => e.stopPropagation()}>
             <FavoriteButton productId={product.id} />
+          </div>
+        )}
+        {/* tag badges — top-left, coloured per the tag's admin colour */}
+        {product.tags && product.tags.length > 0 && (
+          <div style={{ position: "absolute", top: 12, left: 12, zIndex: 3, display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start", maxWidth: "70%" }}>
+            {product.tags.slice(0, 3).map((t) => (
+              <span
+                key={t.id}
+                style={{
+                  display: "inline-block",
+                  background: t.color || "#111111",
+                  color: readableOn(t.color),
+                  fontSize: compact ? 9.5 : 10.5,
+                  fontWeight: 700,
+                  letterSpacing: "0.4px",
+                  textTransform: "uppercase",
+                  padding: compact ? "2px 7px" : "3px 9px",
+                  borderRadius: 999,
+                  lineHeight: 1.3,
+                  boxShadow: "0 2px 6px rgba(0,0,0,0.12)",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  maxWidth: "100%",
+                }}
+              >
+                {t.name}
+              </span>
+            ))}
           </div>
         )}
         {showQuickAdd && (

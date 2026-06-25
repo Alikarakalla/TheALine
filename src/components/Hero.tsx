@@ -2,7 +2,12 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import SerifGlow from "./SerifGlow";
-import { TEXT_COLOR, GLOW_COLOR, asset } from "../lib/constants";
+import { TEXT_COLOR, GLOW_COLOR, asset, PAGE_MAX, PAGE_PAD } from "../lib/constants";
+
+// Left/right offset that matches the header + page container's content edge at
+// any width, so the hero text lines up with the header. The model/stickers stay
+// full-bleed (they're positioned relative to the viewport centre).
+const EDGE = `calc(max(0px, (100% - ${PAGE_MAX}px) / 2) + ${PAGE_PAD})`;
 import { useIsMobile } from "../lib/useResponsive";
 import { useHomepage } from "../context/HomepageContent";
 
@@ -346,7 +351,7 @@ export default function Hero() {
         style={{
           position: "absolute",
           top: 92,
-          left: 40,
+          left: EDGE,
           maxWidth: 500,
           zIndex: 10,
         }}
@@ -636,7 +641,7 @@ export default function Hero() {
         style={{
           position: "absolute",
           top: "48%",
-          right: 32,
+          right: EDGE,
           zIndex: 10,
           maxWidth: 210,
           transform: "translateY(-50%)",
@@ -679,7 +684,7 @@ export default function Hero() {
         style={{
           position: "absolute",
           bottom: 20,
-          right: 32,
+          right: EDGE,
           zIndex: 4,
           fontFamily: "'Instrument Serif', serif",
           fontSize: 87.999,
@@ -697,7 +702,7 @@ export default function Hero() {
         style={{
           position: "absolute",
           bottom: 24,
-          left: 32,
+          left: EDGE,
           zIndex: 10,
           display: "flex",
           alignItems: "flex-end",

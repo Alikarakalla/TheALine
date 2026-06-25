@@ -3,7 +3,7 @@ import { AnimatePresence } from "framer-motion";
 import { TEXT_COLOR } from "../../lib/constants";
 import { apiGet, apiSend } from "../../lib/api";
 import { useToast } from "../../context/Toast";
-import { AdminHeader, Drawer, ui } from "./ui";
+import { AdminHeader, Drawer, ui, useConfirm, MUTED } from "./ui";
 import { Field } from "../../components/AuthUI";
 
 type Option = { id: number; value: string; meta: string | null };
@@ -12,6 +12,7 @@ const isHex = (s?: string | null) => !!s && /^#?[0-9a-fA-F]{3,8}$/.test(s.trim()
 
 export default function AdminVariants() {
   const { show } = useToast();
+  const confirm = useConfirm();
   const [attrs, setAttrs] = useState<Attr[]>([]);
   // create/edit attribute drawer
   const [drawer, setDrawer] = useState<null | { editing?: Attr }>(null);
@@ -39,7 +40,10 @@ export default function AdminVariants() {
       setDrawer(null); load();
     } catch (e: any) { show({ title: e.message, tone: "error" }); }
   };
-  const delAttr = async (a: Attr) => { try { await apiSend("DELETE", `admin/variants/${a.id}`); show({ title: `${a.name} deleted`, tone: "default" }); load(); } catch (e: any) { show({ title: e.message, tone: "error" }); } };
+  const delAttr = async (a: Attr) => {
+    if (!(await confirm({ title: `Delete “${a.name}”?`, message: `This removes the attribute and its ${a.options.length} option${a.options.length === 1 ? "" : "s"} from every product using them. This can’t be undone.`, confirmLabel: "Delete variant" }))) return;
+    try { await apiSend("DELETE", `admin/variants/${a.id}`); show({ title: `${a.name} deleted`, tone: "default" }); load(); } catch (e: any) { show({ title: e.message, tone: "error" }); }
+  };
 
   const addOption = async (a: Attr) => {
     const inp = optInput[a.id] || { value: "", meta: "" };
@@ -47,7 +51,10 @@ export default function AdminVariants() {
     try { await apiSend("POST", `admin/variants/${a.id}/options`, { value: inp.value.trim(), meta: inp.meta.trim() || null }); setOptInput((s) => ({ ...s, [a.id]: { value: "", meta: "" } })); load(); }
     catch (e: any) { show({ title: e.message, tone: "error" }); }
   };
-  const delOption = async (oid: number) => { try { await apiSend("DELETE", `admin/variants/options/${oid}`); load(); } catch (e: any) { show({ title: e.message, tone: "error" }); } };
+  const delOption = async (o: Option) => {
+    if (!(await confirm({ title: `Remove “${o.value}”?`, message: "This option is removed from any product variants using it. This can’t be undone.", confirmLabel: "Remove option" }))) return;
+    try { await apiSend("DELETE", `admin/variants/options/${o.id}`); load(); } catch (e: any) { show({ title: e.message, tone: "error" }); }
+  };
 
   return (
     <div>
@@ -64,7 +71,7 @@ export default function AdminVariants() {
               <span style={{ fontSize: 12, color: "rgba(84,84,84,0.4)" }}>{a.options.length} options</span>
               <div style={{ marginLeft: "auto", display: "flex", gap: 14 }}>
                 <button onClick={() => openEdit(a)} style={ui.linkBtn}>Rename</button>
-                <button onClick={() => delAttr(a)} style={{ ...ui.linkBtn, color: "#c0563f" }}>Delete</button>
+                <button onClick={() => delAttr(a)} style={{ ...ui.linkBtn, color: MUTED }}>Delete</button>
               </div>
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
@@ -73,7 +80,7 @@ export default function AdminVariants() {
                   {isHex(o.meta) && <span style={{ width: 13, height: 13, borderRadius: "50%", background: o.meta!.startsWith("#") ? o.meta! : `#${o.meta}`, border: "1px solid rgba(84,84,84,0.2)" }} />}
                   {o.value}
                   {o.meta && !isHex(o.meta) && <span style={{ color: "rgba(84,84,84,0.45)" }}>· {o.meta}</span>}
-                  <button onClick={() => delOption(o.id)} aria-label="Remove" style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(84,84,84,0.45)", fontSize: 12 }}>✕</button>
+                  <button onClick={() => delOption(o)} aria-label="Remove" style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(84,84,84,0.45)", fontSize: 12 }}>✕</button>
                 </span>
               ))}
               {a.options.length === 0 && <span style={{ fontSize: 13, color: "rgba(84,84,84,0.45)" }}>No options yet.</span>}
@@ -109,7 +116,7 @@ export default function AdminVariants() {
                   <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
                     <input value={o.value} onChange={(e) => setNewOptions((arr) => arr.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)))} placeholder="Value (e.g. Yes)" style={{ ...ui.input, flex: 1 }} />
                     <input value={o.meta} onChange={(e) => setNewOptions((arr) => arr.map((x, j) => (j === i ? { ...x, meta: e.target.value } : x)))} placeholder="#hex (optional)" style={{ ...ui.input, width: 130 }} />
-                    <button onClick={() => setNewOptions((arr) => arr.filter((_, j) => j !== i))} style={{ ...ui.linkBtn, color: "#c0563f" }}>✕</button>
+                    <button onClick={() => setNewOptions((arr) => arr.filter((_, j) => j !== i))} style={{ ...ui.linkBtn, color: MUTED }}>✕</button>
                   </div>
                 ))}
                 <button onClick={() => setNewOptions((arr) => [...arr, { value: "", meta: "" }])} style={{ ...ui.ghostBtn, padding: "9px 16px", fontSize: 13 }}>+ Add option</button>

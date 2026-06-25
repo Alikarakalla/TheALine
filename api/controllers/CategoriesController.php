@@ -35,8 +35,39 @@ class CategoriesController
             'image' => $c['image_url'],
             'position' => (int) $c['position'],
             'status' => $c['status'],
+            // Direct assignments only.
             'productCount' => (int) ($c['product_count'] ?? 0),
+            // Distinct products in this category OR any descendant (rolled up).
+            'totalCount' => (int) ($c['total_count'] ?? ($c['product_count'] ?? 0)),
         ];
+    }
+
+    /**
+     * Flat, shaped category list with rolled-up product counts. The rollup
+     * counts each product once across a whole subtree (a product can now sit in
+     * several categories), so we union product ids per subtree rather than
+     * summing direct counts.
+     */
+    private static function flat(): array
+    {
+        $rows = self::rows();
+        $direct = [];                 // category_id => [product_id => true]
+        foreach (Database::all("SELECT product_id, category_id FROM product_categories") as $pr) {
+            $direct[(int) $pr['category_id']][(int) $pr['product_id']] = true;
+        }
+        $children = [];               // parent_id (0 = top level) => [child_id, ...]
+        foreach ($rows as $r) {
+            $children[$r['parent_id'] !== null ? (int) $r['parent_id'] : 0][] = (int) $r['id'];
+        }
+        $collect = function (int $id) use (&$collect, &$children, &$direct): array {
+            $set = $direct[$id] ?? [];
+            foreach ($children[$id] ?? [] as $kid) $set += $collect($kid);
+            return $set;
+        };
+        return array_map(function ($r) use ($collect) {
+            $r['total_count'] = count($collect((int) $r['id']));
+            return self::shape($r);
+        }, $rows);
     }
 
     private static function tree(array $flat, ?int $parent = null): array
@@ -51,18 +82,33 @@ class CategoriesController
         return $out;
     }
 
-    /** Public: nested tree for storefront nav. */
+    /** Ids of every descendant of $id (children, grandchildren, …) — for cycle guards. */
+    private static function descendantIds(int $id): array
+    {
+        $children = [];
+        foreach (Database::all("SELECT id, parent_id FROM categories") as $r) {
+            $children[$r['parent_id'] !== null ? (int) $r['parent_id'] : 0][] = (int) $r['id'];
+        }
+        $out = [];
+        $walk = function (int $pid) use (&$walk, &$children, &$out) {
+            foreach ($children[$pid] ?? [] as $kid) { $out[] = $kid; $walk($kid); }
+        };
+        $walk($id);
+        return $out;
+    }
+
+    /** Public: nested tree for storefront nav (active categories only). */
     public static function index(): void
     {
-        $flat = array_map([self::class, 'shape'], self::rows());
-        Response::ok(self::tree($flat));
+        $flat = array_filter(self::flat(), fn($c) => $c['status'] === 'active');
+        Response::ok(self::tree(array_values($flat)));
     }
 
     /** Admin: flat list (with tree available client-side). */
     public static function adminIndex(): void
     {
         Auth::requireAdmin();
-        Response::ok(array_map([self::class, 'shape'], self::rows()));
+        Response::ok(self::flat());
     }
 
     public static function create(): void
@@ -90,7 +136,15 @@ class CategoriesController
         $b = Request::body();
         $set = []; $args = [];
         if (array_key_exists('name', $b)) { $set[] = "name=?"; $args[] = $b['name']; }
-        if (array_key_exists('parentId', $b)) { $set[] = "parent_id=?"; $args[] = $b['parentId'] !== null && $b['parentId'] !== '' && (int)$b['parentId'] !== $id ? (int) $b['parentId'] : null; }
+        if (array_key_exists('parentId', $b)) {
+            $pid = ($b['parentId'] !== null && $b['parentId'] !== '') ? (int) $b['parentId'] : null;
+            // A category cannot become a child of itself or of one of its own
+            // descendants — that would detach the whole subtree from the tree.
+            if ($pid !== null && ($pid === $id || in_array($pid, self::descendantIds($id), true))) {
+                Response::error('A category cannot be moved under itself or one of its sub-categories', 422);
+            }
+            $set[] = "parent_id=?"; $args[] = $pid;
+        }
         if (array_key_exists('description', $b)) { $set[] = "description=?"; $args[] = $b['description']; }
         if (array_key_exists('image', $b)) { $set[] = "image_url=?"; $args[] = $b['image']; }
         if (array_key_exists('position', $b)) { $set[] = "position=?"; $args[] = (int) $b['position']; }

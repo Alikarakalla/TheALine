@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { motion, useSpring, useInView } from "framer-motion";
 import SerifGlow from "./SerifGlow";
-import { GLOW_COLOR } from "../lib/constants";
+import { GLOW_COLOR, PAGE_MAX, PAGE_PAD } from "../lib/constants";
 import { useHomepage } from "../context/HomepageContent";
 
 function MagneticButton() {
@@ -171,10 +171,12 @@ export default function Footer() {
       </div>
 
       {/* Bottom bar */}
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.12)" }}>
       <div
         style={{
-          borderTop: "1px solid rgba(255,255,255,0.12)",
-          padding: "24px clamp(20px, 6vw, 64px)",
+          maxWidth: PAGE_MAX,
+          margin: "0 auto",
+          padding: `24px ${PAGE_PAD}`,
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
@@ -209,6 +211,7 @@ export default function Footer() {
             </a>
           ))}
         </div>
+      </div>
       </div>
     </footer>
   );

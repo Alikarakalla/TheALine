@@ -9,6 +9,28 @@ import {
   type Badge,
 } from "../lib/products";
 
+/** A node in the nested category tree (GET /categories). */
+export type CategoryNode = {
+  id: number;
+  parentId: number | null;
+  name: string;
+  slug: string;
+  image?: string | null;
+  status: string;
+  productCount: number;
+  /** Distinct products in this category or any descendant. */
+  totalCount: number;
+  children: CategoryNode[];
+};
+
+/** A storefront-facing collection summary (GET /collections). */
+export type CollectionSummary = { id: number; title: string; slug: string; image?: string | null };
+
+/** Depth-first flatten of the tree, carrying the nesting depth of each node. */
+function flattenTree(nodes: CategoryNode[], depth = 0): { node: CategoryNode; depth: number }[] {
+  return nodes.flatMap((n) => [{ node: n, depth }, ...flattenTree(n.children || [], depth + 1)]);
+}
+
 /**
  * Maps a raw API product (ProductsController::shape) into the storefront
  * `Product` shape the components already consume — so nothing downstream has to
@@ -22,6 +44,11 @@ function fromApi(p: any): Product {
     name: p.name,
     price: Number(p.price) || 0,
     category: p.category || "",
+    categories: Array.isArray(p.categories) ? p.categories : undefined,
+    tags: Array.isArray(p.tags) ? p.tags : undefined,
+    compareAtPrice: p.compareAtPrice != null ? Number(p.compareAtPrice) : undefined,
+    attributes: Array.isArray(p.attributes) ? p.attributes : undefined,
+    variants: Array.isArray(p.variants) ? p.variants : undefined,
     panel: p.panel || "#ECE7DE",
     colors: (p.colors || []).map((c: any): Swatch => ({ name: c.name, hex: c.hex ?? "" })),
     description: p.description || "",
@@ -50,7 +77,14 @@ type CatalogValue = {
   products: Product[];
   byId: Record<string, Product>;
   getById: (id: string | undefined) => Product | undefined;
+  /** Flat list of category names (product-derived) — legacy consumers. */
   categories: string[];
+  /** Nested category tree from the API (empty while offline / on the seed). */
+  categoryTree: CategoryNode[];
+  /** Depth-first flatten of `categoryTree`, with each node's nesting depth. */
+  categoryNodes: { node: CategoryNode; depth: number }[];
+  /** Active storefront collections (for nav / links). */
+  collections: CollectionSummary[];
   colors: Swatch[];
   loading: boolean;
   reload: () => void;
@@ -60,18 +94,31 @@ const Ctx = createContext<CatalogValue | null>(null);
 
 export function CatalogProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>(SEED);
+  const [categoryTree, setCategoryTree] = useState<CategoryNode[]>([]);
+  const [collections, setCollections] = useState<CollectionSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = () => {
     setLoading(true);
     apiGet<any[]>("products")
       .then((rows) => {
-        if (Array.isArray(rows) && rows.length) setProducts(rows.map(fromApi));
+        // Reflect the live catalog exactly — even when empty — so deleting all
+        // products actually empties the storefront. The static seed only stays
+        // as an offline fallback (the .catch below keeps it on a failed fetch).
+        if (Array.isArray(rows)) setProducts(rows.map(fromApi));
       })
       .catch(() => {
         /* keep the seed on failure — offline-friendly */
       })
       .finally(() => setLoading(false));
+    apiGet<CategoryNode[]>("categories")
+      .then((tree) => setCategoryTree(Array.isArray(tree) ? tree : []))
+      .catch(() => {
+        /* no nav tree offline — Shop falls back to flat name filtering */
+      });
+    apiGet<CollectionSummary[]>("collections")
+      .then((rows) => setCollections(Array.isArray(rows) ? rows : []))
+      .catch(() => {});
   };
   useEffect(load, []);
 
@@ -87,11 +134,14 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
       byId,
       getById: (id) => (id ? byId[id] : undefined),
       categories,
+      categoryTree,
+      categoryNodes: flattenTree(categoryTree),
+      collections,
       colors,
       loading,
       reload: load,
     };
-  }, [products, loading]);
+  }, [products, categoryTree, collections, loading]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

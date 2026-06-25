@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { TEXT_COLOR, GLOW_COLOR } from "../../lib/constants";
+import { TEXT_COLOR } from "../../lib/constants";
+import { AdminHeader, DataTable, StatusPill, IconButton, ChevronRightIcon, INK, MUTED, type Column } from "./ui";
 import { apiGet, apiSend } from "../../lib/api";
 import { useToast } from "../../context/Toast";
 
@@ -11,10 +12,14 @@ const fmt = (s: string) => { try { return new Date(s).toLocaleDateString("en-GB"
 export default function AdminCustomers() {
   const { show } = useToast();
   const [list, setList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [detail, setDetail] = useState<any | null>(null);
 
-  const load = () => apiGet<any[]>(`admin/customers${q ? `?q=${encodeURIComponent(q)}` : ""}`, true).then(setList).catch((e) => show({ title: e.message, tone: "error" }));
+  const load = () => {
+    setLoading(true);
+    apiGet<any[]>(`admin/customers${q ? `?q=${encodeURIComponent(q)}` : ""}`, true).then(setList).catch((e) => show({ title: e.message, tone: "error" })).finally(() => setLoading(false));
+  };
   useEffect(() => { const t = setTimeout(load, 200); return () => clearTimeout(t); }, [q]);
 
   const open = (id: number) => apiGet<any>(`admin/customers/${id}`, true).then(setDetail).catch((e) => show({ title: e.message, tone: "error" }));
@@ -24,33 +29,37 @@ export default function AdminCustomers() {
     catch (e: any) { show({ title: e.message, tone: "error" }); }
   };
 
+  const columns: Column<any>[] = [
+    {
+      key: "customer", header: "Customer", width: "minmax(240px, 2fr)",
+      render: (c) => (
+        <button onClick={() => open(c.id)} style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left", fontFamily: "'Inter Tight', sans-serif" }}>
+          <div style={{ width: 38, height: 38, borderRadius: "50%", background: INK, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "#fff", flexShrink: 0 }}>
+            {(c.name || c.email)[0]?.toUpperCase()}
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name || "—"}</div>
+            <div style={{ fontSize: 12.5, color: MUTED, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.email}</div>
+          </div>
+        </button>
+      ),
+    },
+    { key: "orders", header: "Orders", width: 90, render: (c) => <span style={{ fontSize: 13, color: MUTED }}>{c.ordersCount}</span> },
+    { key: "spent", header: "Spent", width: 110, render: (c) => <span style={{ fontSize: 14, fontWeight: 600, color: INK }}>{money(c.totalSpent)}</span> },
+    { key: "status", header: "Status", width: 120, render: (c) => <StatusPill label={c.status} active={c.status === "active"} onClick={() => toggleBlock(c)} title="Toggle blocked / active" /> },
+    { key: "view", header: "", width: 48, align: "right", render: (c) => <IconButton icon={<ChevronRightIcon />} title="View customer" onClick={() => open(c.id)} /> },
+  ];
+
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "2.5px", color: "rgba(84,84,84,0.5)", marginBottom: 8 }}>PEOPLE</div>
-          <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-1px", color: TEXT_COLOR }}>Customers</h1>
-        </div>
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" style={{ background: "#fff", border: "1px solid rgba(84,84,84,0.2)", borderRadius: 999, padding: "9px 18px", fontFamily: "'Inter Tight', sans-serif", fontSize: 13, color: TEXT_COLOR, outline: "none" }} />
-      </div>
+      <AdminHeader
+        eyebrow="PEOPLE"
+        title="Customers"
+        action={<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" style={{ background: "#fff", border: `1px solid ${INK}1f`, borderRadius: 999, padding: "9px 18px", fontFamily: "'Inter Tight', sans-serif", fontSize: 13, color: INK, outline: "none" }} />}
+      />
 
-      <div style={{ background: "#fff", border: "1px solid rgba(84,84,84,0.1)", borderRadius: 16, overflow: "hidden" }}>
-        {list.length === 0 && <div style={{ padding: 40, textAlign: "center", color: "rgba(84,84,84,0.5)" }}>No customers</div>}
-        {list.map((c, i) => (
-          <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", borderTop: i === 0 ? "none" : "1px solid rgba(84,84,84,0.07)" }}>
-            <div style={{ width: 38, height: 38, borderRadius: "50%", background: GLOW_COLOR, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "#111", flexShrink: 0 }}>
-              {(c.name || c.email)[0]?.toUpperCase()}
-            </div>
-            <button onClick={() => open(c.id)} style={{ flex: 1, minWidth: 140, textAlign: "left", background: "none", border: "none", cursor: "pointer", fontFamily: "'Inter Tight', sans-serif" }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: TEXT_COLOR }}>{c.name || "—"}</div>
-              <div style={{ fontSize: 12.5, color: "rgba(84,84,84,0.55)" }}>{c.email}</div>
-            </button>
-            <span style={{ fontSize: 13, color: "rgba(84,84,84,0.65)" }}>{c.ordersCount} orders</span>
-            <span style={{ fontSize: 14, fontWeight: 600, color: TEXT_COLOR, width: 90, textAlign: "right" }}>{money(c.totalSpent)}</span>
-            <button onClick={() => toggleBlock(c)} style={{ fontSize: 11.5, fontWeight: 600, border: "none", borderRadius: 999, padding: "5px 12px", cursor: "pointer", fontFamily: "'Inter Tight', sans-serif", background: c.status === "active" ? "rgba(106,143,0,0.12)" : "rgba(192,86,63,0.12)", color: c.status === "active" ? "#6a8f00" : "#c0563f" }}>{c.status}</button>
-          </div>
-        ))}
-      </div>
+      <DataTable columns={columns} rows={list} rowKey={(c) => c.id} loading={loading} empty="No customers found." />
+
 
       <AnimatePresence>
         {detail && (
@@ -69,8 +78,8 @@ export default function AdminCustomers() {
                 <div style={{ background: "#161616", color: "#fff", borderRadius: 14, padding: 18, marginBottom: 20 }}>
                   <div style={{ fontSize: 11, letterSpacing: "2px", color: "rgba(255,255,255,0.5)", marginBottom: 6 }}>LOVEBAG CIRCLE</div>
                   <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                    <span style={{ fontSize: 28, fontWeight: 700, color: GLOW_COLOR }}>{detail.loyalty.points}</span>
-                    <span style={{ fontSize: 13, color: "rgba(255,255,255,0.6)" }}>Glow Points · {money(detail.loyalty.lifetimeSpend)} lifetime</span>
+                    <span style={{ fontSize: 28, fontWeight: 700, color: "#fff" }}>{detail.loyalty.points}</span>
+                    <span style={{ fontSize: 13, color: "rgba(255,255,255,0.6)" }}>points · {money(detail.loyalty.lifetimeSpend)} lifetime</span>
                   </div>
                 </div>
               )}

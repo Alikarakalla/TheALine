@@ -6,7 +6,7 @@ import { productImageFile, getGallery } from "../lib/products";
 import { useIsMobile } from "../lib/useResponsive";
 import { useProductNav } from "../context/ProductNav";
 import { useCatalog } from "../context/Catalog";
-import { useCart } from "../context/Cart";
+import { useCart, type AddVariant } from "../context/Cart";
 import FavoriteButton from "./FavoriteButton";
 import Header from "./Header";
 import ProductCard from "./ProductCard";
@@ -15,6 +15,10 @@ import type { Product } from "../lib/products";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 const FLIGHT = 0.7;
+
+/** Two option-id sets describe the same variant combination. */
+const sameSet = (a: number[], b: number[]) =>
+  a.length === b.length && [...a].sort().join(",") === [...b].sort().join(",");
 
 /* Magnifier-plus icon (inherits color from the button). */
 function MagnifierIcon({ size = 16 }: { size?: number }) {
@@ -448,16 +452,39 @@ export default function ProductPage() {
   const origin = useRef(product ? consumeOrigin(product.id) : null).current;
   const onClose = close;
 
-  // Image gallery — the clicked image is guaranteed to be in it.
+  // Selected option per attribute (attrId → optionId) for variant products.
+  const [sel, setSel] = useState<Record<number, number>>({});
+
+  // Images of the currently-selected variant (when it has its own gallery).
+  const variantGallery = useMemo(() => {
+    const attrs = product?.attributes ?? [];
+    if (!product || !attrs.length || !product.variants?.length) return null;
+    const ids = attrs.map((a) => sel[a.id] ?? a.options[0]?.id).filter((x): x is number => x != null);
+    const v = product.variants.find((vt) => sameSet(vt.optionIds, ids));
+    return v?.images?.length ? v.images : null;
+  }, [product, sel]);
+
+  // Gallery — the selected variant's images when present, else the product's.
+  // The clicked card image is kept at the front (product view only) so the
+  // shared-element morph lands on the same picture.
   const gallery = useMemo(() => {
     if (!product) return [] as string[];
-    const g = product.images?.length ? [...product.images] : getGallery(product).map(asset);
-    if (origin && !g.includes(origin.imgSrc)) g.unshift(origin.imgSrc);
+    const base = variantGallery ?? (product.images?.length ? product.images : getGallery(product).map(asset));
+    const g = [...base];
+    if (!variantGallery && origin && !g.includes(origin.imgSrc)) g.unshift(origin.imgSrc);
     return g;
-  }, [product, origin]);
+  }, [product, origin, variantGallery]);
 
   const initialIndex = Math.max(0, gallery.indexOf(origin?.imgSrc ?? gallery[0] ?? ""));
   const [activeIndex, setActiveIndex] = useState(initialIndex);
+
+  // When the shopper switches variant, show that variant's gallery from its
+  // first image (skip the initial run so the entrance morph isn't disturbed).
+  const firstGalleryRun = useRef(true);
+  useEffect(() => {
+    if (firstGalleryRun.current) { firstGalleryRun.current = false; return; }
+    setActiveIndex(0);
+  }, [variantGallery]);
   const activeSrc = gallery[activeIndex] ?? "";
   const [zoomOpen, setZoomOpen] = useState(false);
 
@@ -564,6 +591,48 @@ export default function ProductPage() {
   });
 
   const related = products.filter((p) => p.id !== product.id).slice(0, 3);
+
+  // ---- variant resolution (Shopify-style) -------------------------------
+  const attributes = product.attributes ?? [];
+  const hasVariants = attributes.length > 0 && (product.variants?.length ?? 0) > 0;
+  const chosen = (a: (typeof attributes)[number]) => sel[a.id] ?? a.options[0]?.id;
+  const selectedOptionIds = attributes
+    .map((a) => chosen(a))
+    .filter((x): x is number => x != null);
+  const selectedVariant = hasVariants
+    ? (product.variants ?? []).find((v) => sameSet(v.optionIds, selectedOptionIds))
+    : undefined;
+  // Only enforce per-variant stock when the merchant actually tracks it (some
+  // variant carries stock). Legacy catalogs that never set per-variant stock
+  // fall back to product-level availability instead of showing "sold out".
+  const variantStockTracked = (product.variants ?? []).some((v) => v.stock > 0);
+  // Is `optId` reachable in an available variant given the OTHER current picks?
+  const optionAvailable = (attrId: number, optId: number) => {
+    const others = attributes.filter((a) => a.id !== attrId).map((a) => chosen(a));
+    return (product.variants ?? []).some(
+      (v) =>
+        v.status !== "hidden" &&
+        (!variantStockTracked || v.stock > 0) &&
+        v.optionIds.includes(optId) &&
+        others.every((o) => o == null || v.optionIds.includes(o))
+    );
+  };
+  const unitPrice = selectedVariant?.price ?? product.price;
+  const unitCompareAt = selectedVariant?.compareAtPrice ?? product.compareAtPrice ?? null;
+  const selectedLabel = hasVariants
+    ? attributes.map((a) => a.options.find((o) => o.id === chosen(a))?.value).filter(Boolean).join(" / ")
+    : product.colors[color]?.name ?? "";
+  const selectedHex = hasVariants
+    ? attributes.flatMap((a) => a.options).find((o) => selectedOptionIds.includes(o.id) && o.hex)?.hex ?? ""
+    : product.colors[color]?.hex ?? "";
+  const variantUnavailable = hasVariants && (!selectedVariant || selectedVariant.status === "hidden");
+  const variantSoldOut = hasVariants && variantStockTracked && !!selectedVariant && selectedVariant.stock <= 0;
+  const addVariant = {
+    label: selectedLabel,
+    price: unitPrice,
+    image: selectedVariant?.image ?? undefined,
+    sku: selectedVariant?.sku ?? undefined,
+  };
 
   return (
     <motion.div
@@ -762,9 +831,14 @@ export default function ProductPage() {
           {/* price */}
           <motion.div
             {...block(2)}
-            style={{ fontSize: 22, fontWeight: 500, color: TEXT_COLOR, marginBottom: 22 }}
+            style={{ fontSize: 22, fontWeight: 500, color: TEXT_COLOR, marginBottom: 22, display: "flex", alignItems: "baseline", gap: 10 }}
           >
-            €{product.price.toFixed(2)}
+            <span>€{unitPrice.toFixed(2)}</span>
+            {unitCompareAt != null && unitCompareAt > unitPrice && (
+              <span style={{ fontSize: 16, color: "rgba(84,84,84,0.5)", textDecoration: "line-through" }}>
+                €{unitCompareAt.toFixed(2)}
+              </span>
+            )}
           </motion.div>
 
           {/* description */}
@@ -781,63 +855,101 @@ export default function ProductPage() {
             {product.description}
           </motion.p>
 
-          {/* colors */}
-          <motion.div {...block(4)} style={{ marginBottom: 24 }}>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: "2px",
-                color: "rgba(84,84,84,0.5)",
-                marginBottom: 10,
-              }}
-            >
-              COLOR — {product.colors[color].name}
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-              {product.colors.map((c, i) => {
-                const sel = i === color;
-                return c.hex ? (
-                  <button
-                    key={`${c.name}-${i}`}
-                    onClick={() => setColor(i)}
-                    aria-label={c.name}
-                    style={{
-                      width: 30,
-                      height: 30,
-                      borderRadius: "50%",
-                      background: c.hex,
-                      cursor: "pointer",
-                      border: sel ? "2px solid #111" : "2px solid rgba(84,84,84,0.2)",
-                      outline: sel ? `2px solid ${GLOW_COLOR}` : "none",
-                      outlineOffset: 2,
-                      transition: "outline 0.2s ease, border 0.2s ease",
-                    }}
-                  />
-                ) : (
-                  <button
-                    key={`${c.name}-${i}`}
-                    onClick={() => setColor(i)}
-                    style={{
-                      height: 30,
-                      padding: "0 14px",
-                      borderRadius: 999,
-                      background: sel ? GLOW_COLOR : "transparent",
-                      cursor: "pointer",
-                      fontFamily: "'Inter Tight', sans-serif",
-                      fontSize: 13,
-                      fontWeight: sel ? 600 : 400,
-                      color: "#111",
-                      border: sel ? "2px solid #111" : "2px solid rgba(84,84,84,0.2)",
-                      transition: "background 0.2s ease, border 0.2s ease",
-                    }}
-                  >
-                    {c.name}
-                  </button>
+          {/* variant selectors — one group per attribute (Color, Size, …) */}
+          {hasVariants ? (
+            <motion.div {...block(4)} style={{ marginBottom: 24, display: "flex", flexDirection: "column", gap: 18 }}>
+              {attributes.map((a) => {
+                const selectedId = chosen(a);
+                const selName = a.options.find((o) => o.id === selectedId)?.value ?? "";
+                return (
+                  <div key={a.id}>
+                    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "2px", color: "rgba(84,84,84,0.5)", marginBottom: 10, textTransform: "uppercase" }}>
+                      {a.name} — {selName}
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                      {a.options.map((o) => {
+                        const isSel = o.id === selectedId;
+                        const avail = optionAvailable(a.id, o.id);
+                        return o.hex ? (
+                          <button
+                            key={o.id}
+                            onClick={() => setSel((s) => ({ ...s, [a.id]: o.id }))}
+                            aria-label={o.value}
+                            title={avail ? o.value : `${o.value} — unavailable`}
+                            style={{
+                              width: 30, height: 30, borderRadius: "50%", background: o.hex, cursor: "pointer",
+                              border: isSel ? "2px solid #111" : "2px solid rgba(84,84,84,0.2)",
+                              outline: isSel ? `2px solid ${GLOW_COLOR}` : "none", outlineOffset: 2,
+                              opacity: avail ? 1 : 0.35,
+                              transition: "outline 0.2s ease, border 0.2s ease, opacity 0.2s ease",
+                            }}
+                          />
+                        ) : (
+                          <button
+                            key={o.id}
+                            onClick={() => setSel((s) => ({ ...s, [a.id]: o.id }))}
+                            style={{
+                              height: 34, minWidth: 42, padding: "0 14px", borderRadius: 999,
+                              background: isSel ? GLOW_COLOR : "transparent", cursor: "pointer",
+                              fontFamily: "'Inter Tight', sans-serif", fontSize: 13, fontWeight: isSel ? 600 : 400, color: "#111",
+                              border: isSel ? "2px solid #111" : "2px solid rgba(84,84,84,0.2)",
+                              opacity: avail ? 1 : 0.4, textDecoration: avail ? "none" : "line-through",
+                              transition: "background 0.2s ease, border 0.2s ease, opacity 0.2s ease",
+                            }}
+                          >
+                            {o.value}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 );
               })}
-            </div>
-          </motion.div>
+              {(variantUnavailable || variantSoldOut) && (
+                <div style={{ fontSize: 12.5, color: "#c0563f" }}>
+                  {variantSoldOut ? "This combination is out of stock." : "This combination isn’t available — pick another."}
+                </div>
+              )}
+            </motion.div>
+          ) : product.colors.length > 0 ? (
+            <motion.div {...block(4)} style={{ marginBottom: 24 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "2px", color: "rgba(84,84,84,0.5)", marginBottom: 10 }}>
+                COLOR — {product.colors[color].name}
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                {product.colors.map((c, i) => {
+                  const isSel = i === color;
+                  return c.hex ? (
+                    <button
+                      key={`${c.name}-${i}`}
+                      onClick={() => setColor(i)}
+                      aria-label={c.name}
+                      style={{
+                        width: 30, height: 30, borderRadius: "50%", background: c.hex, cursor: "pointer",
+                        border: isSel ? "2px solid #111" : "2px solid rgba(84,84,84,0.2)",
+                        outline: isSel ? `2px solid ${GLOW_COLOR}` : "none", outlineOffset: 2,
+                        transition: "outline 0.2s ease, border 0.2s ease",
+                      }}
+                    />
+                  ) : (
+                    <button
+                      key={`${c.name}-${i}`}
+                      onClick={() => setColor(i)}
+                      style={{
+                        height: 30, padding: "0 14px", borderRadius: 999,
+                        background: isSel ? GLOW_COLOR : "transparent", cursor: "pointer",
+                        fontFamily: "'Inter Tight', sans-serif", fontSize: 13, fontWeight: isSel ? 600 : 400, color: "#111",
+                        border: isSel ? "2px solid #111" : "2px solid rgba(84,84,84,0.2)",
+                        transition: "background 0.2s ease, border 0.2s ease",
+                      }}
+                    >
+                      {c.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </motion.div>
+          ) : null}
 
           {/* qty + add to bag */}
           <motion.div
@@ -865,7 +977,14 @@ export default function ProductPage() {
                 +
               </button>
             </div>
-            <AddToBag product={product} color={product.colors[color]} qty={qty} />
+            <AddToBag
+              product={product}
+              color={{ name: selectedLabel, hex: selectedHex }}
+              variant={hasVariants ? addVariant : undefined}
+              unitPrice={unitPrice}
+              disabled={variantUnavailable || variantSoldOut}
+              qty={qty}
+            />
             <FavoriteButton productId={product.id} variant="outline" size={46} />
           </motion.div>
 
@@ -932,18 +1051,27 @@ function AddToBag({
   product,
   color,
   qty,
+  variant,
+  unitPrice,
+  disabled,
 }: {
   product: Product;
   color: { name: string; hex: string };
   qty: number;
+  variant?: AddVariant;
+  unitPrice?: number;
+  disabled?: boolean;
 }) {
   const x = useSpring(0, { stiffness: 200, damping: 14 });
   const y = useSpring(0, { stiffness: 200, damping: 14 });
   const { add } = useCart();
   const [added, setAdded] = useState(false);
+  const price = unitPrice ?? product.price;
   return (
     <motion.button
+      disabled={disabled}
       onMouseMove={(e) => {
+        if (disabled) return;
         const r = e.currentTarget.getBoundingClientRect();
         x.set((e.clientX - (r.left + r.width / 2)) * 0.25);
         y.set((e.clientY - (r.top + r.height / 2)) * 0.25);
@@ -953,17 +1081,18 @@ function AddToBag({
         y.set(0);
       }}
       onClick={() => {
-        add(product, color, qty);
+        if (disabled) return;
+        add(product, color, qty, variant);
         setAdded(true);
         setTimeout(() => setAdded(false), 1800);
       }}
-      whileTap={{ scale: 0.97 }}
+      whileTap={disabled ? undefined : { scale: 0.97 }}
       style={{
         x,
         y,
         flex: 1,
-        background: GLOW_COLOR,
-        color: "#111111",
+        background: disabled ? "rgba(84,84,84,0.18)" : GLOW_COLOR,
+        color: disabled ? "rgba(84,84,84,0.7)" : "#111111",
         border: "none",
         borderRadius: 999,
         padding: "0 28px",
@@ -971,12 +1100,12 @@ function AddToBag({
         fontSize: 14.5,
         fontWeight: 600,
         letterSpacing: "-0.2px",
-        cursor: "pointer",
+        cursor: disabled ? "not-allowed" : "pointer",
         fontFamily: "'Inter Tight', sans-serif",
         whiteSpace: "nowrap",
       }}
     >
-      {added ? "Added to bag ✓" : `Add to bag — €${(product.price * qty).toFixed(2)}`}
+      {disabled ? "Unavailable" : added ? "Added to bag ✓" : `Add to bag — €${(price * qty).toFixed(2)}`}
     </motion.button>
   );
 }

@@ -1,6 +1,6 @@
 import { NavLink, Navigate, Outlet, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { GLOW_COLOR } from "../../lib/constants";
+import { INK, APP_BG, ConfirmProvider } from "./ui";
 import { useIsMobile } from "../../lib/useResponsive";
 import { useAdminAuth } from "../../context/AdminAuth";
 
@@ -8,6 +8,7 @@ const NAV: { to: string; label: string; icon: string; end?: boolean }[] = [
   { to: "/admin", label: "Dashboard", icon: "◧", end: true },
   { to: "/admin/products", label: "Products", icon: "🛍" },
   { to: "/admin/categories", label: "Categories", icon: "▦" },
+  { to: "/admin/collections", label: "Collections", icon: "◇" },
   { to: "/admin/brands", label: "Brands", icon: "✦" },
   { to: "/admin/variants", label: "Variants", icon: "⊞" },
   { to: "/admin/tags", label: "Tags", icon: "#" },
@@ -28,7 +29,7 @@ export default function AdminLayout() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: "100vh", background: "#161616", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.5)", fontFamily: "'Inter Tight', sans-serif" }}>
+      <div style={{ minHeight: "100vh", background: INK, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.5)", fontFamily: "'Inter Tight', sans-serif" }}>
         Loading…
       </div>
     );
@@ -39,7 +40,7 @@ export default function AdminLayout() {
     <>
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: isMobile ? "0 4px" : "4px 8px 24px" }}>
         <span style={{ fontSize: 14, fontWeight: 600, letterSpacing: "2.5px", color: "#fff" }}>THE A LINE</span>
-        <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "1px", color: "#111", background: GLOW_COLOR, borderRadius: 999, padding: "2px 7px" }}>ADMIN</span>
+        <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "1px", color: INK, background: "#fff", borderRadius: 999, padding: "2px 7px" }}>ADMIN</span>
       </div>
       <nav style={{ display: "flex", flexDirection: isMobile ? "row" : "column", gap: 2, overflowX: isMobile ? "auto" : "visible" }}>
         {NAV.map((n) => (
@@ -55,8 +56,8 @@ export default function AdminLayout() {
                   fontFamily: "'Inter Tight', sans-serif",
                   fontSize: 14,
                   whiteSpace: "nowrap",
-                  color: isActive ? "#111" : "rgba(255,255,255,0.7)",
-                  background: isActive ? GLOW_COLOR : "transparent",
+                  color: isActive ? INK : "rgba(255,255,255,0.7)",
+                  background: isActive ? "#fff" : "transparent",
                   fontWeight: isActive ? 600 : 400,
                   transition: "background 0.2s ease, color 0.2s ease",
                 }}
@@ -72,11 +73,11 @@ export default function AdminLayout() {
   );
 
   return (
-    <div style={{ minHeight: "100vh", background: "#F1EEE8", fontFamily: "'Inter Tight', sans-serif", display: "flex", flexDirection: isMobile ? "column" : "row" }}>
+    <div style={{ minHeight: "100vh", background: APP_BG, fontFamily: "'Inter Tight', sans-serif", display: "flex", flexDirection: isMobile ? "column" : "row" }}>
       {/* sidebar */}
       <aside
         style={{
-          background: "#161616",
+          background: INK,
           width: isMobile ? "100%" : 240,
           flexShrink: 0,
           padding: isMobile ? "16px 16px 12px" : "26px 18px",
@@ -101,9 +102,11 @@ export default function AdminLayout() {
 
       {/* content */}
       <main style={{ flex: 1, minWidth: 0, padding: isMobile ? "24px 20px 60px" : "36px 44px 80px" }}>
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}>
-          <Outlet />
-        </motion.div>
+        <ConfirmProvider>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}>
+            <Outlet />
+          </motion.div>
+        </ConfirmProvider>
       </main>
     </div>
   );

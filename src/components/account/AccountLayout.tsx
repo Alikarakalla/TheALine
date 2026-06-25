@@ -3,7 +3,7 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import Header from "../Header";
 import SerifGlow from "../SerifGlow";
 import AccountNav from "./AccountNav";
-import { TEXT_COLOR } from "../../lib/constants";
+import { TEXT_COLOR, PAGE_MAX, PAGE_PAD } from "../../lib/constants";
 import { useIsMobile } from "../../lib/useResponsive";
 import { useAuth } from "../../context/Auth";
 
@@ -27,7 +27,7 @@ export default function AccountLayout() {
   return (
     <div data-tone="light" style={{ minHeight: "100vh", background: "#ffffff", fontFamily: "'Inter Tight', sans-serif" }}>
       <Header />
-      <div style={{ maxWidth: 1080, margin: "0 auto", padding: isMobile ? "104px 24px 80px" : "140px 64px 100px" }}>
+      <div style={{ maxWidth: PAGE_MAX, margin: "0 auto", padding: isMobile ? `104px ${PAGE_PAD} 80px` : `140px ${PAGE_PAD} 100px` }}>
         <motion.div
           initial={{ opacity: 0, filter: "blur(8px)", y: 14 }}
           animate={{ opacity: 1, filter: "blur(0px)", y: 0 }}

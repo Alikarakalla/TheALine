@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import SerifGlow from "../components/SerifGlow";
 import RewardsContent from "../components/account/RewardsContent";
-import { GLOW_COLOR } from "../lib/constants";
+import { GLOW_COLOR, PAGE_MAX, PAGE_PAD } from "../lib/constants";
 import { useIsMobile } from "../lib/useResponsive";
 import { useLoyalty } from "../context/Loyalty";
 import { setPageMeta, resetPageMeta } from "../lib/meta";
@@ -57,8 +57,8 @@ export default function Rewards() {
   return (
     <div data-tone="light" style={{ minHeight: "100vh", background: "#ffffff", fontFamily: "'Inter Tight', sans-serif" }}>
       <Header />
-      <div style={{ background: "#161616", color: "#fff", padding: isMobile ? "110px 24px 48px" : "150px 64px 64px" }}>
-        <div style={{ maxWidth: 1080, margin: "0 auto", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 32 }}>
+      <div style={{ background: "#161616", color: "#fff", padding: isMobile ? "110px 0 48px" : "150px 0 64px" }}>
+        <div style={{ maxWidth: PAGE_MAX, margin: "0 auto", padding: `0 ${PAGE_PAD}`, display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 32 }}>
           <div>
             <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "2.5px", color: "rgba(255,255,255,0.5)", marginBottom: 14 }}>REWARDS PROGRAM</div>
             <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
@@ -90,7 +90,7 @@ export default function Rewards() {
         </div>
       </div>
 
-      <div style={{ maxWidth: 1080, margin: "0 auto", padding: isMobile ? "40px 24px 80px" : "56px 64px 100px" }}>
+      <div style={{ maxWidth: PAGE_MAX, margin: "0 auto", padding: isMobile ? `40px ${PAGE_PAD} 80px` : `56px ${PAGE_PAD} 100px` }}>
         <RewardsContent />
       </div>
     </div>

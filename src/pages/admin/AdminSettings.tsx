@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { TEXT_COLOR, GLOW_COLOR } from "../../lib/constants";
+import { TEXT_COLOR } from "../../lib/constants";
+import { INK } from "./ui";
 import { apiGet, apiSend } from "../../lib/api";
 import { useToast } from "../../context/Toast";
 import { applyTheme, useSiteSettings } from "../../context/SiteSettings";
@@ -65,7 +66,7 @@ export default function AdminSettings() {
           <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "2.5px", color: "rgba(84,84,84,0.5)", marginBottom: 8 }}>APPEARANCE & STORE</div>
           <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-1px", color: TEXT_COLOR }}>Settings & Theme</h1>
         </div>
-        <button onClick={save} disabled={saving} style={{ background: GLOW_COLOR, border: "none", borderRadius: 999, padding: "13px 28px", cursor: saving ? "wait" : "pointer", fontFamily: "'Inter Tight', sans-serif", fontSize: 14, fontWeight: 600, color: "#111" }}>
+        <button onClick={save} disabled={saving} style={{ background: INK, border: "none", borderRadius: 999, padding: "13px 28px", cursor: saving ? "wait" : "pointer", fontFamily: "'Inter Tight', sans-serif", fontSize: 14, fontWeight: 600, color: "#fff" }}>
           {saving ? "Saving…" : "Save changes"}
         </button>
       </div>

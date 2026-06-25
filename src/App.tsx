@@ -15,6 +15,7 @@ import AdminLayout from "./pages/admin/AdminLayout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminProducts from "./pages/admin/AdminProducts";
 import AdminCategories from "./pages/admin/AdminCategories";
+import AdminCollections from "./pages/admin/AdminCollections";
 import AdminOrders from "./pages/admin/AdminOrders";
 import AdminCustomers from "./pages/admin/AdminCustomers";
 import AdminBrands from "./pages/admin/AdminBrands";
@@ -35,6 +36,7 @@ import { ReviewsProvider } from "./context/Reviews";
 import { RecentlyViewedProvider } from "./context/RecentlyViewed";
 import Landing from "./pages/Index";
 import Shop from "./pages/Shop";
+import CollectionPage from "./pages/CollectionPage";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import OrderConfirmed from "./pages/OrderConfirmed";
@@ -54,7 +56,7 @@ import AccountRewards from "./components/account/AccountRewards";
 import SettingsPage from "./components/account/SettingsPage";
 import ProductPage from "./components/ProductPage";
 import AnnouncementBar from "./components/AnnouncementBar";
-import { PRODUCT_LIST } from "./lib/products";
+import { useCatalog } from "./context/Catalog";
 
 /**
  * The product route renders ON TOP of whichever base page launched it (home or
@@ -80,6 +82,7 @@ function AppRoutes() {
   const location = useLocation();
   const state = location.state as { background?: Location } | null;
   const background = state?.background;
+  const { products } = useCatalog();
 
   return (
     <>
@@ -87,6 +90,7 @@ function AppRoutes() {
       <Routes location={background || location}>
         <Route path="/" element={<Landing />} />
         <Route path="/shop" element={<Shop />} />
+        <Route path="/collection/:slug" element={<CollectionPage />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/order-confirmed" element={<OrderConfirmed />} />
@@ -112,6 +116,7 @@ function AppRoutes() {
           <Route index element={<AdminDashboard />} />
           <Route path="products" element={<AdminProducts />} />
           <Route path="categories" element={<AdminCategories />} />
+          <Route path="collections" element={<AdminCollections />} />
           <Route path="brands" element={<AdminBrands />} />
           <Route path="variants" element={<AdminVariants />} />
           <Route path="tags" element={<AdminTags />} />
@@ -146,7 +151,7 @@ function AppRoutes() {
         }}
       >
         <a href="/shop">Shop</a>
-        {PRODUCT_LIST.map((p) => (
+        {products.map((p) => (
           <a key={p.id} href={`/product/${p.id}`}>
             {p.name}
           </a>

@@ -5,6 +5,7 @@ require_once __DIR__ . '/controllers/AuthController.php';
 require_once __DIR__ . '/controllers/SettingsController.php';
 require_once __DIR__ . '/controllers/ProductsController.php';
 require_once __DIR__ . '/controllers/CategoriesController.php';
+require_once __DIR__ . '/controllers/CollectionsController.php';
 require_once __DIR__ . '/controllers/OrdersController.php';
 require_once __DIR__ . '/controllers/CustomersController.php';
 require_once __DIR__ . '/controllers/BrandsController.php';
@@ -21,12 +22,16 @@ require_once __DIR__ . '/controllers/AddressesController.php';
 require_once __DIR__ . '/controllers/PaymentMethodsController.php';
 require_once __DIR__ . '/controllers/FavoritesController.php';
 require_once __DIR__ . '/controllers/ReviewsController.php';
+require_once __DIR__ . '/controllers/DashboardController.php';
 
 function registerRoutes(Router $router): void
 {
     // ---- Auth ----
     $router->post('auth/login', fn() => AuthController::login());
     $router->get('auth/me', fn() => AuthController::me());
+
+    // ---- Admin dashboard ----
+    $router->get('admin/dashboard', fn() => DashboardController::index());
 
     // ---- Settings / theme ----
     $router->get('settings', fn() => SettingsController::publicGet());
@@ -48,6 +53,14 @@ function registerRoutes(Router $router): void
     $router->post('admin/categories', fn() => CategoriesController::create());
     $router->put('admin/categories/{id}', fn($p) => CategoriesController::update($p));
     $router->delete('admin/categories/{id}', fn($p) => CategoriesController::destroy($p));
+
+    // ---- Collections (manual + smart) ----
+    $router->get('collections', fn() => CollectionsController::index());
+    $router->get('collections/{slug}', fn($p) => CollectionsController::show($p));
+    $router->get('admin/collections', fn() => CollectionsController::adminIndex());
+    $router->post('admin/collections', fn() => CollectionsController::create());
+    $router->put('admin/collections/{id}', fn($p) => CollectionsController::update($p));
+    $router->delete('admin/collections/{id}', fn($p) => CollectionsController::destroy($p));
 
     // ---- Customer accounts (storefront) ----
     $router->post('auth/customer/register', fn() => CustomerAuthController::register());

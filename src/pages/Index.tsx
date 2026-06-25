@@ -5,6 +5,7 @@ import PerfectMatch from "../components/PerfectMatch";
 import Story from "../components/Story";
 import Lookbook from "../components/Lookbook";
 import BentoGrid from "../components/BentoGrid";
+import CollectionsShowcase from "../components/CollectionsShowcase";
 import Footer from "../components/Footer";
 
 /** The landing page — kept mounted across routes so the product morph stays seamless. */
@@ -18,6 +19,7 @@ export default function Landing() {
       <Story />
       <Lookbook />
       <BentoGrid />
+      <CollectionsShowcase />
       <Footer />
     </>
   );

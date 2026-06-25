@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import SerifGlow from "../components/SerifGlow";
 import ProductCard from "../components/ProductCard";
-import { TEXT_COLOR, GLOW_COLOR } from "../lib/constants";
+import { TEXT_COLOR, GLOW_COLOR, PAGE_MAX, PAGE_PAD } from "../lib/constants";
 import { type Product } from "../lib/products";
 import { useCatalog } from "../context/Catalog";
 import { useIsMobile } from "../lib/useResponsive";
@@ -48,9 +48,9 @@ export default function Favorites() {
       <Header />
       <div
         style={{
-          maxWidth: 1180,
+          maxWidth: PAGE_MAX,
           margin: "0 auto",
-          padding: isMobile ? "110px 24px 80px" : "150px 64px 100px",
+          padding: isMobile ? `110px ${PAGE_PAD} 80px` : `150px ${PAGE_PAD} 100px`,
         }}
       >
         <motion.div

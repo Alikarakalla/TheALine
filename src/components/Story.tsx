@@ -6,7 +6,7 @@ import {
   type MotionValue,
 } from "framer-motion";
 import SerifGlow from "./SerifGlow";
-import { TEXT_COLOR, asset } from "../lib/constants";
+import { TEXT_COLOR, asset, PAGE_EDGE } from "../lib/constants";
 import { useIsMobile } from "../lib/useResponsive";
 import { useHomepage } from "../context/HomepageContent";
 
@@ -215,7 +215,8 @@ function StoryDesktop() {
             position: "relative",
             zIndex: 2,
             maxWidth: 720,
-            padding: "0 64px",
+            marginLeft: PAGE_EDGE,
+            paddingRight: 64,
           }}
         >
           {/* eyebrow */}

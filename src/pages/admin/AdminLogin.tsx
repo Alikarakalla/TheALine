@@ -3,7 +3,6 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import SerifGlow from "../../components/SerifGlow";
 import { Field, AuthButton } from "../../components/AuthUI";
-import { GLOW_COLOR } from "../../lib/constants";
 import { useAdminAuth } from "../../context/AdminAuth";
 import { setPageMeta } from "../../lib/meta";
 
@@ -59,7 +58,7 @@ export default function AdminLogin() {
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
           <span style={{ fontSize: 14, fontWeight: 600, letterSpacing: "2.5px" }}>THE A LINE</span>
-          <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "1px", color: "#111", background: GLOW_COLOR, borderRadius: 999, padding: "2px 8px" }}>ADMIN</span>
+          <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "1px", color: "#111", background: "#fff", borderRadius: 999, padding: "2px 8px" }}>ADMIN</span>
         </div>
         <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 6 }}>
           <span style={{ fontSize: 40, fontWeight: 600, letterSpacing: "-1.5px" }}>Sign</span>

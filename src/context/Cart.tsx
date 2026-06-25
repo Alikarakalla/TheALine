@@ -12,20 +12,25 @@ import { productImageFile } from "../lib/products";
 import { asset } from "../lib/constants";
 
 export type CartItem = {
-  id: string; // productId:colorName
+  id: string; // productId:variantLabel
   productId: string;
   name: string;
   category: string;
-  colorName: string;
+  colorName: string; // doubles as the variant label, e.g. "Beige / L"
   colorHex: string;
   price: number;
   image: string;
   qty: number;
+  /** SKU of the chosen variant, when known. */
+  sku?: string;
 };
+
+/** Per-variant overrides for a specific selected combination. */
+export type AddVariant = { label?: string; price?: number; image?: string; sku?: string };
 
 type Ctx = {
   items: CartItem[];
-  add: (product: Product, color: { name: string; hex: string }, qty: number) => void;
+  add: (product: Product, color: { name: string; hex: string }, qty: number, variant?: AddVariant) => void;
   remove: (id: string) => void;
   setQty: (id: string, qty: number) => void;
   clear: () => void;
@@ -63,8 +68,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }, [items]);
 
-  const add = useCallback<Ctx["add"]>((product, color, qty) => {
-    const id = `${product.id}:${color.name}`;
+  const add = useCallback<Ctx["add"]>((product, color, qty, variant) => {
+    const label = variant?.label ?? color.name;
+    const id = `${product.id}:${label}`;
     setItems((prev) => {
       const existing = prev.find((i) => i.id === id);
       if (existing)
@@ -78,11 +84,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
           productId: product.id,
           name: product.name,
           category: product.category,
-          colorName: color.name,
+          colorName: label,
           colorHex: color.hex,
-          price: product.price,
-          image: product.images?.[0] ?? asset(productImageFile(product)),
+          price: variant?.price ?? product.price,
+          image: variant?.image ?? product.images?.[0] ?? asset(productImageFile(product)),
           qty,
+          sku: variant?.sku,
         },
       ];
     });

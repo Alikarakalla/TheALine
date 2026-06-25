@@ -3,7 +3,7 @@ import { AnimatePresence } from "framer-motion";
 import { TEXT_COLOR } from "../../lib/constants";
 import { apiGet, apiSend } from "../../lib/api";
 import { useToast } from "../../context/Toast";
-import { AdminHeader, Modal, ui } from "./ui";
+import { AdminHeader, Modal, ui, useConfirm, MUTED } from "./ui";
 import { Field, AuthButton } from "../../components/AuthUI";
 
 type Banner = { id: number; title: string; subtitle: string; image: string; link: string; linkLabel: string; placement: string; status: string };
@@ -11,6 +11,7 @@ const blank = { title: "", subtitle: "", image: "", link: "", linkLabel: "", pla
 
 export default function AdminBanners() {
   const { show } = useToast();
+  const confirm = useConfirm();
   const [list, setList] = useState<Banner[]>([]);
   const [modal, setModal] = useState<null | { editing?: Banner }>(null);
   const [form, setForm] = useState({ ...blank });
@@ -41,7 +42,7 @@ export default function AdminBanners() {
             {b.link && <div style={{ fontSize: 12, color: "rgba(84,84,84,0.5)", marginTop: 6 }}>{b.linkLabel || "Link"} → {b.link}</div>}
             <div style={{ display: "flex", gap: 14, marginTop: 14 }}>
               <button onClick={() => { setForm({ title: b.title || "", subtitle: b.subtitle || "", image: b.image || "", link: b.link || "", linkLabel: b.linkLabel || "", placement: b.placement, status: b.status }); setModal({ editing: b }); }} style={ui.linkBtn}>Edit</button>
-              <button onClick={async () => { await apiSend("DELETE", `admin/banners/${b.id}`); load(); }} style={{ ...ui.linkBtn, color: "#c0563f" }}>Delete</button>
+              <button onClick={async () => { if (!(await confirm({ title: `Delete “${b.title || "this banner"}”?`, message: "This permanently removes the banner. This can’t be undone.", confirmLabel: "Delete banner" }))) return; await apiSend("DELETE", `admin/banners/${b.id}`); load(); }} style={{ ...ui.linkBtn, color: MUTED }}>Delete</button>
             </div>
           </div>
         ))}

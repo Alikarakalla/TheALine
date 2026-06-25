@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS brands (
   updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ===== Categories (self-referential, supports 3 levels) =====
+-- ===== Categories (self-referential; unlimited nesting depth) =====
 CREATE TABLE IF NOT EXISTS categories (
   id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   parent_id   INT UNSIGNED NULL,
@@ -67,11 +67,36 @@ CREATE TABLE IF NOT EXISTS categories (
   CONSTRAINT fk_cat_parent FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ===== Collections (manual hand-picked, or smart rule-based) =====
+CREATE TABLE IF NOT EXISTS collections (
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  title       VARCHAR(190) NOT NULL,
+  slug        VARCHAR(200) NOT NULL UNIQUE,
+  description TEXT NULL,
+  image_url   VARCHAR(500) NULL,
+  type        ENUM('manual','smart') NOT NULL DEFAULT 'manual',
+  match_type  ENUM('all','any') NOT NULL DEFAULT 'all',  -- smart: match ALL or ANY rule
+  rules       LONGTEXT NULL,                              -- smart: JSON [{field,op,value}]
+  status      ENUM('active','hidden') NOT NULL DEFAULT 'active',
+  position    INT NOT NULL DEFAULT 0,
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS product_collections (
+  product_id    INT UNSIGNED NOT NULL,
+  collection_id INT UNSIGNED NOT NULL,
+  PRIMARY KEY (product_id, collection_id),
+  CONSTRAINT fk_pcol_prod FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+  CONSTRAINT fk_pcol_col  FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- ===== Tags =====
 CREATE TABLE IF NOT EXISTS tags (
   id    INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   name  VARCHAR(100) NOT NULL,
-  slug  VARCHAR(120) NOT NULL UNIQUE
+  slug  VARCHAR(120) NOT NULL UNIQUE,
+  color VARCHAR(9) NULL                  -- badge background shown on the storefront card
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ===== Variant attributes & options (e.g. Color -> Cognac #9c5a2d) =====
@@ -182,11 +207,13 @@ CREATE TABLE IF NOT EXISTS product_variants (
   id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   product_id INT UNSIGNED NOT NULL,
   sku        VARCHAR(80) NULL,
-  name       VARCHAR(160) NULL,            -- e.g. "Cognac"
+  name       VARCHAR(160) NULL,            -- combination label, e.g. "Beige / L"
   color_hex  VARCHAR(9) NULL,
   price      DECIMAL(10,2) NULL,           -- override; null = product price
+  compare_at_price DECIMAL(10,2) NULL,     -- per-variant "was" price (discount)
   stock      INT NOT NULL DEFAULT 0,
-  image_url  VARCHAR(500) NULL,
+  image_url  VARCHAR(500) NULL,                 -- primary (first) variant image
+  images     LONGTEXT NULL,                     -- JSON array of gallery image URLs
   position   INT NOT NULL DEFAULT 0,
   status     ENUM('active','hidden') NOT NULL DEFAULT 'active',
   CONSTRAINT fk_var_prod FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,

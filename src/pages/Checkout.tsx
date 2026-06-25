@@ -4,7 +4,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import SerifGlow from "../components/SerifGlow";
 import { Field, AuthButton, isEmail } from "../components/AuthUI";
-import { TEXT_COLOR, GLOW_COLOR } from "../lib/constants";
+import { TEXT_COLOR, GLOW_COLOR, PAGE_MAX, PAGE_PAD } from "../lib/constants";
 import { useIsMobile } from "../lib/useResponsive";
 import { useCart } from "../context/Cart";
 import { useAuth } from "../context/Auth";
@@ -341,9 +341,9 @@ export default function Checkout() {
       <Header />
       <div
         style={{
-          maxWidth: 1140,
+          maxWidth: PAGE_MAX,
           margin: "0 auto",
-          padding: isMobile ? "100px 24px 80px" : "140px 64px 100px",
+          padding: isMobile ? `100px ${PAGE_PAD} 80px` : `140px ${PAGE_PAD} 100px`,
         }}
       >
         <motion.div

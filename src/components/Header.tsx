@@ -14,16 +14,18 @@ import {
   curlInitial,
   curlAnimate,
   curlTransition,
+  PAGE_MAX,
+  PAGE_PAD,
 } from "../lib/constants";
 import { useIsMobile } from "../lib/useResponsive";
 import { useCart } from "../context/Cart";
 import { useSearch } from "../context/Search";
 import { useAuth } from "../context/Auth";
 import { useFavorites } from "../context/Favorites";
+import { useCatalog, type CategoryNode } from "../context/Catalog";
 
 type Tone = "light" | "dark";
 
-const NAV = ["Catalog", "Favorites", "Cart (0)"];
 const MENU = ["Catalog", "Favorites", "Account", "About", "Cart (0)"];
 const SOCIALS = ["Instagram", "Pinterest", "Contact"];
 
@@ -91,16 +93,25 @@ function NavLink({
   label,
   color,
   onClick,
+  onHover,
+  caret,
 }: {
   label: string;
   color: string;
   onClick?: () => void;
+  /** Fired alongside the link's own hover — used to open the category menu. */
+  onHover?: () => void;
+  /** Show a ▾ caret (for the category-menu trigger). */
+  caret?: boolean;
 }) {
   const [hover, setHover] = useState(false);
   return (
     <button
       onClick={onClick}
-      onMouseEnter={() => setHover(true)}
+      onMouseEnter={() => {
+        setHover(true);
+        onHover?.();
+      }}
       onMouseLeave={() => setHover(false)}
       style={{
         position: "relative",
@@ -113,9 +124,13 @@ function NavLink({
         fontWeight: 400,
         color,
         transition: "color 0.4s ease",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
       }}
     >
       {label}
+      {caret && <span style={{ fontSize: 9, opacity: 0.7 }}>▾</span>}
       <motion.span
         style={{
           position: "absolute",
@@ -315,8 +330,17 @@ function Burger({
 function OverlayMenu({ onClose }: { onClose: () => void }) {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const { categoryTree, categoryNodes, collections } = useCatalog();
   const go = (label: string) => {
     if (ROUTE_FOR[label]) navigate(ROUTE_FOR[label]);
+    onClose();
+  };
+  const goCat = (slug?: string) => {
+    navigate(slug ? `/shop?category=${slug}` : "/shop");
+    onClose();
+  };
+  const goCol = (slug: string) => {
+    navigate(`/collection/${slug}`);
     onClose();
   };
   return (
@@ -400,12 +424,78 @@ function OverlayMenu({ onClose }: { onClose: () => void }) {
           padding: isMobile ? "0 20px" : "0 32px 40px",
         }}
       >
-        {/* nav words */}
-        <nav style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {MENU.map((item, i) => (
-            <MenuWord key={item} label={item} index={i} onClose={() => go(item)} />
-          ))}
-        </nav>
+        {/* nav words + category tree */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 24, minWidth: 0 }}>
+          <nav style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {MENU.map((item, i) => (
+              <MenuWord key={item} label={item} index={i} onClose={() => go(item)} />
+            ))}
+          </nav>
+
+          {categoryTree.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.6 }}
+              style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: isMobile ? "32vh" : 280, overflowY: "auto", paddingRight: 8 }}
+            >
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  letterSpacing: "2px",
+                  color: "rgba(84,84,84,0.5)",
+                  textTransform: "uppercase",
+                }}
+              >
+                Shop by category
+              </div>
+              {categoryNodes.map(({ node, depth }) => (
+                <button
+                  key={node.id}
+                  onClick={() => goCat(node.slug)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    cursor: "pointer",
+                    fontFamily: "'Inter Tight', sans-serif",
+                    fontSize: depth === 0 ? 15 : 14,
+                    fontWeight: depth === 0 ? 600 : 400,
+                    color: depth === 0 ? TEXT_COLOR : "rgba(84,84,84,0.75)",
+                    textAlign: "left",
+                    paddingLeft: depth * 16,
+                  }}
+                >
+                  {depth > 0 && <span style={{ color: "rgba(84,84,84,0.3)", marginRight: 6 }}>—</span>}
+                  {node.name}
+                </button>
+              ))}
+            </motion.div>
+          )}
+
+          {collections.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.72 }}
+              style={{ display: "flex", flexDirection: "column", gap: 10 }}
+            >
+              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "2px", color: "rgba(84,84,84,0.5)", textTransform: "uppercase" }}>
+                Collections
+              </div>
+              {collections.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => goCol(c.slug)}
+                  style={{ background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "'Inter Tight', sans-serif", fontSize: 15, fontWeight: 600, color: TEXT_COLOR, textAlign: "left" }}
+                >
+                  {c.title}
+                </button>
+              ))}
+            </motion.div>
+          )}
+        </div>
 
         {/* featured image */}
         {!isMobile && (
@@ -525,15 +615,145 @@ const ROUTE_FOR: Record<string, string> = {
   Account: "/account",
 };
 
+/** Recursive list of sub-categories inside a mega-menu column. */
+function CatSubList({
+  nodes,
+  depth,
+  onPick,
+}: {
+  nodes: CategoryNode[];
+  depth: number;
+  onPick: (slug: string) => void;
+}) {
+  if (!nodes?.length) return null;
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 7,
+        marginTop: depth === 0 ? 12 : 7,
+        paddingLeft: depth > 0 ? 12 : 0,
+        borderLeft: depth > 0 ? "1px solid rgba(84,84,84,0.12)" : "none",
+      }}
+    >
+      {nodes.map((n) => (
+        <div key={n.id}>
+          <button
+            onClick={() => onPick(n.slug)}
+            style={{
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              fontFamily: "'Inter Tight', sans-serif",
+              fontSize: depth === 0 ? 13.5 : 13,
+              fontWeight: 400,
+              color: "rgba(84,84,84,0.78)",
+              textAlign: "left",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = TEXT_COLOR)}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(84,84,84,0.78)")}
+          >
+            {n.name}
+          </button>
+          <CatSubList nodes={n.children || []} depth={depth + 1} onPick={onPick} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Full-width category mega-menu that drops below the header bar on hover. */
+function CategoryMegaPanel({ tree, onPick }: { tree: CategoryNode[]; onPick: (slug?: string) => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
+      transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+      style={{
+        position: "absolute",
+        top: "100%",
+        left: 0,
+        right: 0,
+        background: "#ffffff",
+        borderTop: "1px solid rgba(84,84,84,0.08)",
+        borderBottom: "1px solid rgba(84,84,84,0.1)",
+        boxShadow: "0 26px 50px rgba(0,0,0,0.10)",
+      }}
+    >
+      <div
+        style={{
+          maxWidth: PAGE_MAX,
+          margin: "0 auto",
+          padding: `30px ${PAGE_PAD} 34px`,
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))",
+          gap: "26px 40px",
+        }}
+      >
+        {tree.map((top) => (
+          <div key={top.id}>
+            <button
+              onClick={() => onPick(top.slug)}
+              style={{
+                background: "none",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+                fontFamily: "'Inter Tight', sans-serif",
+                fontSize: 15,
+                fontWeight: 600,
+                color: TEXT_COLOR,
+                textAlign: "left",
+              }}
+            >
+              {top.name}
+            </button>
+            <CatSubList nodes={top.children || []} depth={0} onPick={onPick} />
+          </div>
+        ))}
+      </div>
+      <div style={{ borderTop: "1px solid rgba(84,84,84,0.08)" }}>
+        <div style={{ maxWidth: PAGE_MAX, margin: "0 auto", padding: `14px ${PAGE_PAD}` }}>
+          <button
+            onClick={() => onPick()}
+            style={{
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              fontFamily: "'Inter Tight', sans-serif",
+              fontSize: 13,
+              fontWeight: 500,
+              color: TEXT_COLOR,
+            }}
+          >
+            View all products →
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 export default function Header() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const { count: favCount } = useFavorites();
+  const { categoryTree } = useCatalog();
   const { scrollY } = useScroll();
   const [hidden, setHidden] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [tone, setTone] = useState<Tone>("light");
   const [open, setOpen] = useState(false);
+  const [catOpen, setCatOpen] = useState(false);
+
+  const goCat = (slug?: string) => {
+    navigate(slug ? `/shop?category=${slug}` : "/shop");
+    setCatOpen(false);
+  };
 
   useMotionValueEvent(scrollY, "change", (latest) => {
     const prev = scrollY.getPrevious() ?? 0;
@@ -601,22 +821,20 @@ export default function Header() {
         initial={{ y: -80, opacity: 0 }}
         animate={{ y: hidden ? -90 : 0, opacity: 1 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        onMouseLeave={() => setCatOpen(false)}
         style={{
           position: "fixed",
           top: 0,
           left: 0,
           right: 0,
           zIndex: 100,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
           padding: scrolled
             ? isMobile
-              ? "12px 20px"
-              : "14px 32px"
+              ? "12px 0"
+              : "14px 0"
             : isMobile
-            ? "16px 20px"
-            : "20px 32px",
+            ? "16px 0"
+            : "20px 0",
           background: barBg,
           backdropFilter: scrolled && !isMobile ? "blur(14px)" : "none",
           WebkitBackdropFilter: scrolled && !isMobile ? "blur(14px)" : "none",
@@ -626,7 +844,18 @@ export default function Header() {
           transition: "background 0.4s ease, border-color 0.4s ease",
         }}
       >
-        {/* logo */}
+        <div
+          style={{
+            maxWidth: PAGE_MAX,
+            margin: "0 auto",
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: `0 ${PAGE_PAD}`,
+          }}
+        >
+          {/* logo */}
         <button
           onClick={() => navigate("/")}
           style={{
@@ -644,24 +873,36 @@ export default function Header() {
 
         {/* right cluster */}
         <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 14 : 28 }}>
-          {!isMobile &&
-            NAV.slice(0, 2).map((l) => (
+          {!isMobile && (
+            <>
               <NavLink
-                key={l}
-                label={
-                  l === "Favorites" && favCount > 0
-                    ? `Favorites (${favCount})`
-                    : l
-                }
+                label="Catalog"
                 color={fg}
-                onClick={ROUTE_FOR[l] ? () => navigate(ROUTE_FOR[l]) : undefined}
+                caret={categoryTree.length > 0}
+                onClick={() => navigate("/shop")}
+                onHover={() => setCatOpen(categoryTree.length > 0)}
               />
-            ))}
+              <NavLink
+                label={favCount > 0 ? `Favorites (${favCount})` : "Favorites"}
+                color={fg}
+                onClick={() => navigate("/favorites")}
+                onHover={() => setCatOpen(false)}
+              />
+            </>
+          )}
           <SearchButton color={fg} />
           <AccountButton color={fg} />
           <CartButton color={fg} />
           <Burger color={fg} onClick={() => setOpen(true)} />
         </div>
+        </div>
+
+        {/* category mega-menu (desktop, on hover) */}
+        <AnimatePresence>
+          {catOpen && !isMobile && categoryTree.length > 0 && (
+            <CategoryMegaPanel tree={categoryTree} onPick={goCat} />
+          )}
+        </AnimatePresence>
       </motion.header>
 
       <AnimatePresence>

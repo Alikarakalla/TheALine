@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { TEXT_COLOR, GLOW_COLOR } from "../../lib/constants";
+import { TEXT_COLOR } from "../../lib/constants";
 import { apiGet, apiSend } from "../../lib/api";
 import { useToast } from "../../context/Toast";
 

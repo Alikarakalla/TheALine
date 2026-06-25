@@ -3,7 +3,6 @@ import { motion, useInView } from "framer-motion";
 import SerifGlow from "./SerifGlow";
 import { TEXT_COLOR, asset } from "../lib/constants";
 import { useIsMobile, useViewportWidth } from "../lib/useResponsive";
-import { PRODUCT_LIST } from "../lib/products";
 import { useCatalog } from "../context/Catalog";
 import { useHomepage } from "../context/HomepageContent";
 import { useProductNav } from "../context/ProductNav";
@@ -25,7 +24,8 @@ export default function PerfectMatch() {
   const { open } = useProductNav();
   const { products } = useCatalog();
   const { perfectmatch: pm } = useHomepage();
-  const catalog = products.length ? products : PRODUCT_LIST;
+  // Real products only, evenly spaced around the ring (cap at 6 for the orbit).
+  const items = products.slice(0, BAGS.length);
 
   // Responsive orbit geometry. On mobile: keep bags small enough that the ring
   // clears the centred title, and pull the radius in so the *labels* (which sit
@@ -36,7 +36,6 @@ export default function PerfectMatch() {
   const ORBIT_RADIUS = isMobile
     ? Math.max(108, Math.min(140, vw / 2 - LABEL_DIST - 20))
     : 260;
-  const LABEL_FONT = isMobile ? 13 : 16;
   const STAGE_H = isMobile ? 2 * (ORBIT_RADIUS + BAG_HALF) + 70 : 640;
 
   const [angle, setAngle] = useState(0);
@@ -79,7 +78,8 @@ export default function PerfectMatch() {
         position: "relative",
       }}
     >
-      {/* Torn paper top edge */}
+      {/* Torn paper top edge — tinted pure white so it blends into the white
+          section (no grey band) while still tearing over the dark section above. */}
       <img
         src={asset("paper.png")}
         alt=""
@@ -92,6 +92,7 @@ export default function PerfectMatch() {
           height: "auto",
           objectFit: "cover",
           objectPosition: "top center",
+          filter: "brightness(0) invert(1)",
           zIndex: 50,
           pointerEvents: "none",
         }}
@@ -193,15 +194,15 @@ export default function PerfectMatch() {
 
         {/* Orbit center */}
         <div style={{ position: "absolute", top: "50%", left: "50%" }}>
-          {BAGS.map((bag, i) => {
-            const rad = ((angle + bag.baseAngle) * Math.PI) / 180;
+          {items.map((p, i) => {
+            const baseAngle = (360 / items.length) * i;
+            const img = p.images?.[0] || asset(BAGS[i % BAGS.length].img);
+            const rad = ((angle + baseAngle) * Math.PI) / 180;
             const x = Math.cos(rad) * ORBIT_RADIUS;
             const y = Math.sin(rad) * ORBIT_RADIUS;
-            const labelX = Math.cos(rad) * LABEL_DIST;
-            const labelY = Math.sin(rad) * LABEL_DIST;
             return (
               <div
-                key={bag.img}
+                key={p.id}
                 style={{
                   position: "absolute",
                   top: 0,
@@ -225,13 +226,7 @@ export default function PerfectMatch() {
                   }}
                   onMouseEnter={() => setPaused(true)}
                   onMouseLeave={() => setPaused(false)}
-                  onClick={(e) =>
-                    open(
-                      catalog[i % catalog.length],
-                      e.currentTarget,
-                      asset(bag.img)
-                    )
-                  }
+                  onClick={(e) => open(p, e.currentTarget, img)}
                   style={{
                     width: BAG_SIZE,
                     height: BAG_SIZE,
@@ -240,8 +235,8 @@ export default function PerfectMatch() {
                   }}
                 >
                   <img
-                    src={asset(bag.img)}
-                    alt=""
+                    src={img}
+                    alt={p.name}
                     style={{
                       width: BAG_SIZE,
                       height: BAG_SIZE,
@@ -250,24 +245,6 @@ export default function PerfectMatch() {
                     }}
                   />
                 </motion.div>
-                {/* radial label */}
-                <div
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    transform: `translate(${labelX}px, ${labelY}px) translate(-50%, -50%)`,
-                    fontFamily: "'Instrument Serif', serif",
-                    fontSize: LABEL_FONT,
-                    fontWeight: 400,
-                    color: "rgba(84,84,84,0.65)",
-                    letterSpacing: "-0.5px",
-                    whiteSpace: "nowrap",
-                    pointerEvents: "none",
-                  }}
-                >
-                  {bag.label}
-                </div>
               </div>
             );
           })}

@@ -9,6 +9,15 @@ export const GLOW_COLOR_HEX = "#D9C49A";
 export const ASSET = "https://qclay.design/lovable/bags";
 export const asset = (file: string) => `${ASSET}/${file}`;
 
+// Shared page layout — one content width + side padding used by the header and
+// every page so their left/right edges line up across the whole site.
+export const PAGE_MAX = 1440;
+export const PAGE_PAD = "clamp(24px, 4vw, 44px)";
+// Distance from the viewport edge to the shared container's content edge — use
+// for left/right-anchored content (hero, section text) so it lines up with the
+// header at any width while the surrounding visuals stay full-bleed.
+export const PAGE_EDGE = `calc(max(0px, (100% - ${PAGE_MAX}px) / 2) + ${PAGE_PAD})`;
+
 // Signature "tubular curl" entrance — shared by every serif accent word.
 export const curlInitial = {
   rotateX: -110,

@@ -8,7 +8,7 @@ import {
 import SerifGlow from "./SerifGlow";
 import { asset } from "../lib/constants";
 import { useViewportWidth, useIsMobile } from "../lib/useResponsive";
-import { getProduct } from "../lib/products";
+import { type Product } from "../lib/products";
 import { useProductNav } from "../context/ProductNav";
 import { useCatalog } from "../context/Catalog";
 import { useHomepage } from "../context/HomepageContent";
@@ -18,8 +18,8 @@ const ENV_H = 340;
 const FLAP_W = 480;
 const FLAP_H = 200;
 
-const NAMES = ["Terra", "Love Bag", "Amélie", "Belle", "Mira", "Adele"];
 const CARD_Z = [2, 4, 6, 6, 4, 2];
+const MAX_CARDS = 6;
 
 // Mid-stage peek positions [x, y, rotateDeg]
 const PEEK: [number, number, number][] = [
@@ -31,35 +31,29 @@ const PEEK: [number, number, number][] = [
   [95, -28, 12],
 ];
 
-// Final horizontal row positions [x, y, rotateDeg] (desktop, one wide row)
-const END: [number, number, number][] = [
-  [-625, 0, 0],
-  [-375, 0, 0],
-  [-125, 0, 0],
-  [125, 0, 0],
-  [375, 0, 0],
-  [625, 0, 0],
-];
-
-// Mobile final positions — a tidy 2×3 grid (these are pre-scale coords).
-const END_MOBILE: [number, number, number][] = [
-  [-178, -225, 0],
-  [0, -225, 0],
-  [178, -225, 0],
-  [-178, 225, 0],
-  [0, 225, 0],
-  [178, 225, 0],
-];
+// Final resting position for card `i` of `n` — computed so any count stays
+// centred. Desktop: one wide row (250px apart). Mobile: a centred 3-col grid
+// (matches the original 2×3 layout exactly when n = 6).
+function endPos(i: number, n: number, isMobile: boolean): [number, number, number] {
+  if (!isMobile) return [(i - (n - 1) / 2) * 250, 0, 0];
+  const rows = Math.ceil(n / 3);
+  const row = Math.floor(i / 3);
+  const col = i % 3;
+  const inRow = row === rows - 1 ? n - row * 3 : 3;
+  return [(col - (inRow - 1) / 2) * 178, (row - (rows - 1) / 2) * 450, 0];
+}
 
 const OFF = [0, 0.015, 0.03, 0.045, 0.06, 0.075];
 
 function Photo({
+  product,
   i,
   scrollY,
   cardsOut,
   end,
   isMobile,
 }: {
+  product: Product;
   i: number;
   scrollY: MotionValue<number>;
   cardsOut: boolean;
@@ -67,9 +61,8 @@ function Photo({
   isMobile: boolean;
 }) {
   const { open } = useProductNav();
-  const { products } = useCatalog();
-  const product = products[i] ?? getProduct(NAMES[i]);
-  const label = product?.name ?? NAMES[i];
+  const label = product.name;
+  const img = product.images?.[0] || asset("photo-" + (i + 1) + ".png");
   const a0 = 0.3 + OFF[i];
   const a1 = 0.5 + OFF[i];
   const b0 = 0.55 + OFF[i];
@@ -84,9 +77,7 @@ function Photo({
     <motion.div
       whileHover={isMobile ? undefined : { rotate: [0, -3, 3, -2, 2, 0] }}
       transition={{ duration: 0.5, ease: "easeInOut" }}
-      onClick={(e) =>
-        open(product, e.currentTarget, asset("photo-" + (i + 1) + ".png"))
-      }
+      onClick={(e) => open(product, e.currentTarget, img)}
       style={{
         position: "absolute",
         left: -90,
@@ -104,7 +95,7 @@ function Photo({
       }}
     >
       <img
-        src={asset("photo-" + (i + 1) + ".png")}
+        src={img}
         alt={label}
         style={{
           width: "100%",
@@ -149,7 +140,7 @@ function Photo({
               color: "rgba(255,255,255,0.7)",
             }}
           >
-            €{(product?.price ?? 129.9).toFixed(2)}
+            €{product.price.toFixed(2)}
           </div>
         </motion.div>
       )}
@@ -159,13 +150,14 @@ function Photo({
 
 export default function Collection() {
   const { collection } = useHomepage();
+  const { products } = useCatalog();
+  const items = products.slice(0, MAX_CARDS);
   const containerRef = useRef<HTMLDivElement>(null);
   const vw = useViewportWidth();
   const isMobile = useIsMobile();
   // On mobile the cards fan into a 2×3 grid (~±205 wide), so the stage can be
   // much bigger than the desktop single-row case. On desktop the row spans
   // ~±625px + half a card, so scale the whole stage to fit narrow viewports.
-  const endPositions = isMobile ? END_MOBILE : END;
   const stageScale = isMobile
     ? Math.min(0.5, (vw - 24) / 700)
     : Math.min(1, (vw - 24) / 1430);
@@ -209,6 +201,9 @@ export default function Collection() {
       unsubEnv();
     };
   }, [scrollYProgress, envelopeY]);
+
+  // No products → nothing to showcase; hide the whole section.
+  if (!items.length) return null;
 
   return (
     <section
@@ -402,13 +397,14 @@ export default function Collection() {
               y: photoCounterY,
             }}
           >
-            {NAMES.map((_, i) => (
+            {items.map((product, i) => (
               <Photo
-                key={i}
+                key={product.id}
+                product={product}
                 i={i}
                 scrollY={scrollYProgress}
                 cardsOut={cardsOut}
-                end={endPositions[i]}
+                end={endPos(i, items.length, isMobile)}
                 isMobile={isMobile}
               />
             ))}
