@@ -38,9 +38,10 @@ tar czf - public api .htaccess \
 
 # ---- 3. Apply pending DB migrations on the server --------------------------
 # Runs api/sql/migrations/*.sql that haven't been applied yet (tracked in the
-# schema_migrations table). Keeps the production DB in sync with the code.
+# schema_migrations table), via the app's own PDO connection. Keeps the
+# production DB in sync with the code.
 echo "==> Running database migrations"
-ssh -p "$SSH_PORT" "$TARGET" "cd '$REMOTE_PATH' && bash api/sql/run-migrations.sh"
+ssh -p "$SSH_PORT" "$TARGET" "cd '$REMOTE_PATH' && php api/sql/migrate.php"
 
 echo "==> Done."
 echo "    Verify:  https://<your-domain>/api/health   (expects status: up)"

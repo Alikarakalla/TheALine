@@ -40,7 +40,7 @@ try {
   if ($LASTEXITCODE -ne 0) { throw "remote extract failed" }
 
   Write-Host "==> Running database migrations" -ForegroundColor Cyan
-  ssh -p $P $target "cd '$R' && bash api/sql/run-migrations.sh"
+  ssh -p $P $target "cd '$R' && php api/sql/migrate.php"
   if ($LASTEXITCODE -ne 0) { throw "migrations failed" }
 }
 finally {
