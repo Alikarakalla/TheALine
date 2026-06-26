@@ -1,18 +1,7 @@
--- ============================================================================
--- Production migration: bring an older DB (deployed pre-collections) up to the
--- current code's schema.  Idempotent — safe to run more than once on MariaDB.
---
--- Fixes the 500 errors on:
---   /api/collections, /api/admin/collections   (missing collections tables)
---   /api/products,    /api/admin/products      (missing product_variants cols)
---   /api/admin/tags                            (missing tags.color)
---
--- HOW TO RUN: Hostinger hPanel -> Databases -> phpMyAdmin -> select the shop DB
--- -> SQL tab -> paste this whole file -> Go.
--- ============================================================================
+-- Adds the collections feature + tag colour + per-variant compare price/gallery.
+-- Idempotent (safe to re-run). Applied automatically by api/sql/run-migrations.sh.
 SET FOREIGN_KEY_CHECKS = 0;
 
--- ----- Collections (manual hand-picked, or smart rule-based) -----------------
 CREATE TABLE IF NOT EXISTS collections (
   id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   title       VARCHAR(190) NOT NULL,
@@ -36,11 +25,9 @@ CREATE TABLE IF NOT EXISTS product_collections (
   CONSTRAINT fk_pcol_col  FOREIGN KEY (collection_id) REFERENCES collections(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ----- tags.color (badge background) -----------------------------------------
 ALTER TABLE tags
   ADD COLUMN IF NOT EXISTS color VARCHAR(9) NULL AFTER slug;
 
--- ----- product_variants: compare_at_price + images ---------------------------
 ALTER TABLE product_variants
   ADD COLUMN IF NOT EXISTS compare_at_price DECIMAL(10,2) NULL AFTER price;
 ALTER TABLE product_variants

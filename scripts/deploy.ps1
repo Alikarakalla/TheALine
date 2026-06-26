@@ -38,6 +38,10 @@ try {
   Write-Host "==> Extracting on server (replaces public/, keeps .env + uploads)" -ForegroundColor Cyan
   ssh -p $P $target "cd '$R' && rm -rf public && tar -xzf deploy.tgz && rm -f deploy.tgz && echo '   extracted OK'"
   if ($LASTEXITCODE -ne 0) { throw "remote extract failed" }
+
+  Write-Host "==> Running database migrations" -ForegroundColor Cyan
+  ssh -p $P $target "cd '$R' && bash api/sql/run-migrations.sh"
+  if ($LASTEXITCODE -ne 0) { throw "migrations failed" }
 }
 finally {
   if (Test-Path deploy.tgz) { Remove-Item deploy.tgz -Force }
