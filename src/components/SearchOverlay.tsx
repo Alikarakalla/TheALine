@@ -70,12 +70,12 @@ function Chip({ label, onClick, onRemove }: { label: string; onClick: () => void
         display: "inline-flex",
         alignItems: "center",
         gap: 7,
-        background: hover ? GLOW_COLOR : "transparent",
-        border: `1px solid ${hover ? GLOW_COLOR : "rgba(84,84,84,0.2)"}`,
+        background: hover ? "#141414" : "transparent",
+        border: `1px solid ${hover ? "#141414" : "rgba(84,84,84,0.2)"}`,
         borderRadius: 999,
         padding: "8px 14px",
         fontSize: 13,
-        color: hover ? "#111" : TEXT_COLOR,
+        color: hover ? "#ffffff" : TEXT_COLOR,
         transition: "background 0.25s ease, color 0.25s ease, border-color 0.25s ease",
       }}
     >
@@ -188,7 +188,7 @@ export default function SearchOverlay({ onClose }: { onClose: () => void }) {
         initial={{ scaleY: 1 }}
         animate={{ scaleY: 0 }}
         transition={{ duration: 0.6, ease: [0.76, 0, 0.24, 1] }}
-        style={{ position: "absolute", inset: 0, background: GLOW_COLOR, transformOrigin: "top", zIndex: 1 }}
+        style={{ position: "absolute", inset: 0, background: "#141414", transformOrigin: "top", zIndex: 1 }}
       />
 
       {/* top row */}
@@ -285,7 +285,7 @@ export default function SearchOverlay({ onClose }: { onClose: () => void }) {
               fontWeight: 400,
               letterSpacing: "-0.5px",
               color: TEXT_COLOR,
-              caretColor: GLOW_COLOR,
+              caretColor: "#141414",
             }}
           />
           {q && (

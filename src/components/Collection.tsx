@@ -11,6 +11,7 @@ import { useViewportWidth, useIsMobile } from "../lib/useResponsive";
 import { type Product } from "../lib/products";
 import { useProductNav } from "../context/ProductNav";
 import { useCatalog } from "../context/Catalog";
+import { useMoney } from "../context/Currency";
 import { useHomepage } from "../context/HomepageContent";
 
 const ENV_W = 480;
@@ -61,6 +62,7 @@ function Photo({
   isMobile: boolean;
 }) {
   const { open } = useProductNav();
+  const fmt = useMoney();
   const label = product.name;
   const img = product.images?.[0] || asset("photo-" + (i + 1) + ".png");
   const a0 = 0.3 + OFF[i];
@@ -140,7 +142,7 @@ function Photo({
               color: "rgba(255,255,255,0.7)",
             }}
           >
-            €{product.price.toFixed(2)}
+            {fmt(product.price)}
           </div>
         </motion.div>
       )}

@@ -3,6 +3,7 @@ import { AnimatePresence } from "framer-motion";
 import { apiGet, apiSend } from "../../lib/api";
 import { useToast } from "../../context/Toast";
 import AdminProductForm from "./AdminProductForm";
+import { useBaseMoney } from "../../context/Currency";
 import { AdminHeader, DataTable, StatusPill, IconButton, PencilIcon, TrashIcon, PlusIcon, useConfirm, ui, INK, MUTED, type Column } from "./ui";
 
 type P = {
@@ -11,6 +12,7 @@ type P = {
 };
 
 export default function AdminProducts() {
+  const money = useBaseMoney();
   const { show } = useToast();
   const confirm = useConfirm();
   const [list, setList] = useState<P[]>([]);
@@ -66,7 +68,7 @@ export default function AdminProducts() {
           </div>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 15, fontWeight: 600, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
-            <div style={{ fontSize: 12.5, color: MUTED }}>{p.category || "—"} · €{p.price.toFixed(2)}</div>
+            <div style={{ fontSize: 12.5, color: MUTED }}>{p.category || "—"} · {money(p.price)}</div>
           </div>
         </div>
       ),

@@ -20,7 +20,7 @@ export default function OrderStatus({ createdAt }: { createdAt: number }) {
                   left: "50%",
                   width: "100%",
                   height: 2,
-                  background: i < active ? GLOW_COLOR : "rgba(84,84,84,0.2)",
+                  background: i < active ? "#141414" : "rgba(84,84,84,0.2)",
                 }}
               />
             )}
@@ -36,7 +36,7 @@ export default function OrderStatus({ createdAt }: { createdAt: number }) {
                 justifyContent: "center",
                 fontSize: 11,
                 fontWeight: 600,
-                background: reached ? GLOW_COLOR : "transparent",
+                background: reached ? "#141414" : "transparent",
                 border: reached ? "none" : "1.5px solid rgba(84,84,84,0.3)",
                 color: reached ? "#111" : "rgba(84,84,84,0.5)",
               }}

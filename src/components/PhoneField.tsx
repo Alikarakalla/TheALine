@@ -218,9 +218,9 @@ export function PhoneField({
             alignItems: "stretch",
             background: "#fff",
             border: `1.5px solid ${
-              error ? "#c0563f" : focus ? GLOW_COLOR : "rgba(58,58,58,0.2)"
+              error ? "#c0563f" : focus ? "#141414" : "rgba(58,58,58,0.2)"
             }`,
-            boxShadow: focus && !error ? "0 0 0 3px rgba(217,196,154,0.25)" : "none",
+            boxShadow: focus && !error ? "0 0 0 3px rgba(20,20,20,0.07)" : "none",
             borderRadius: 12,
             transition: "border 0.2s ease, box-shadow 0.2s ease",
             overflow: "hidden",

@@ -10,7 +10,7 @@ import { getProductById } from "../../lib/products";
 import { statusLabel, estimatedDelivery } from "../../lib/tracking";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
-const money = (n: number) => `€${n.toFixed(2)}`;
+import { useBaseMoney } from "../../context/Currency";
 const fmtDate = (ts: number) => {
   try {
     return new Date(ts).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
@@ -20,6 +20,7 @@ const fmtDate = (ts: number) => {
 };
 
 export default function OrdersPage() {
+  const money = useBaseMoney();
   const navigate = useNavigate();
   const { orders } = useOrders();
   const { add } = useCart();
@@ -66,7 +67,7 @@ export default function OrdersPage() {
                     <div style={{ fontSize: 14, fontWeight: 600, color: TEXT_COLOR }}>{o.number}</div>
                     <div style={{ fontSize: 12.5, color: "rgba(84,84,84,0.55)" }}>{fmtDate(o.createdAt)} · {o.items.reduce((n, i) => n + i.qty, 0)} items · {money(o.total)}</div>
                   </div>
-                  <span style={{ fontSize: 11.5, fontWeight: 600, letterSpacing: "0.5px", color: "#111", background: GLOW_COLOR, borderRadius: 999, padding: "5px 11px" }}>
+                  <span style={{ fontSize: 11.5, fontWeight: 600, letterSpacing: "0.5px", color: "#ffffff", background: "#141414", borderRadius: 999, padding: "5px 11px" }}>
                     {statusLabel(o.createdAt, Date.now())}
                   </span>
                   <motion.span animate={{ rotate: open ? 180 : 0 }} style={{ fontSize: 12, color: "rgba(84,84,84,0.5)" }}>▾</motion.span>
@@ -98,7 +99,7 @@ export default function OrdersPage() {
                           ))}
                         </div>
                         <div style={{ display: "flex", gap: 12, marginTop: 18, flexWrap: "wrap" }}>
-                          <button onClick={() => reorder(o.number)} style={{ background: GLOW_COLOR, border: "none", borderRadius: 999, padding: "11px 22px", cursor: "pointer", fontFamily: "'Inter Tight', sans-serif", fontSize: 13.5, fontWeight: 600, color: "#111" }}>Reorder</button>
+                          <button onClick={() => reorder(o.number)} style={{ background: "#141414", border: "none", borderRadius: 999, padding: "11px 22px", cursor: "pointer", fontFamily: "'Inter Tight', sans-serif", fontSize: 13.5, fontWeight: 600, color: "#ffffff" }}>Reorder</button>
                           <button onClick={() => navigate(`/orders/${o.number}`)} style={{ background: "none", border: "1px solid rgba(84,84,84,0.25)", borderRadius: 999, padding: "11px 22px", cursor: "pointer", fontFamily: "'Inter Tight', sans-serif", fontSize: 13.5, fontWeight: 500, color: TEXT_COLOR }}>View receipt</button>
                         </div>
                       </div>

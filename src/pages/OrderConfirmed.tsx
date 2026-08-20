@@ -9,9 +9,10 @@ import { useOrders } from "../context/Orders";
 import { setPageMeta, resetPageMeta } from "../lib/meta";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
-const money = (n: number) => `€${n.toFixed(2)}`;
+import { useBaseMoney } from "../context/Currency";
 
 export default function OrderConfirmed() {
+  const money = useBaseMoney();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
@@ -57,7 +58,8 @@ export default function OrderConfirmed() {
             width: 60,
             height: 60,
             borderRadius: "50%",
-            background: GLOW_COLOR,
+            background: "#141414",
+            color: "#ffffff",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -195,7 +197,7 @@ export default function OrderConfirmed() {
             style={{
               flex: 1,
               minWidth: 160,
-              background: GLOW_COLOR,
+              background: "#141414",
               border: "none",
               borderRadius: 999,
               padding: "16px 0",
@@ -203,7 +205,7 @@ export default function OrderConfirmed() {
               fontFamily: "'Inter Tight', sans-serif",
               fontSize: 15,
               fontWeight: 600,
-              color: "#111",
+              color: "#ffffff",
             }}
           >
             Continue shopping

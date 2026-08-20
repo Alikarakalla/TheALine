@@ -7,9 +7,12 @@ import { useToast } from "../../context/Toast";
 import { AdminHeader, Modal, ui, useConfirm, MUTED } from "./ui";
 import { Field, AuthButton } from "../../components/AuthUI";
 
-const money = (n: number) => `€${n.toFixed(0)}`;
+import { useBaseCurrency, useBaseMoney } from "../../context/Currency";
 
 export default function AdminLoyalty() {
+  const base = useBaseCurrency();
+  const fmtBase = useBaseMoney();
+  const money = (n: number) => fmtBase(n, true);
   const { show } = useToast();
   const confirm = useConfirm();
   const [tab, setTab] = useState<"tiers" | "rewards" | "members">("tiers");
@@ -59,11 +62,11 @@ export default function AdminLoyalty() {
           {tiers.map((t) => (
             <div key={t.id} style={ui.card}>
               <input value={t.name} onChange={(e) => setTier(t.id, { name: e.target.value })} style={{ ...ui.input, fontWeight: 600, fontSize: 18, marginBottom: 14 }} />
-              <label style={ui.label}>Min lifetime spend (€)</label>
+              <label style={ui.label}>Min lifetime spend ({base.symbol})</label>
               <input type="number" value={t.minSpend} onChange={(e) => setTier(t.id, { minSpend: e.target.value })} style={{ ...ui.input, marginBottom: 12 }} />
-              <label style={ui.label}>Earn rate (pts per €)</label>
+              <label style={ui.label}>Earn rate (pts per {base.symbol})</label>
               <input type="number" step="0.05" value={t.earnRate} onChange={(e) => setTier(t.id, { earnRate: e.target.value })} style={{ ...ui.input, marginBottom: 12 }} />
-              <label style={ui.label}>Free shipping over (€, 0 = always)</label>
+              <label style={ui.label}>Free shipping over ({base.symbol}, 0 = always)</label>
               <input type="number" value={t.freeShipThreshold} onChange={(e) => setTier(t.id, { freeShipThreshold: e.target.value })} style={{ ...ui.input, marginBottom: 12 }} />
               <label style={ui.label}>Perks (one per line)</label>
               <textarea value={(t.perks || []).join("\n")} onChange={(e) => setTier(t.id, { perks: e.target.value.split("\n").filter(Boolean) })} rows={4} style={{ ...ui.input, marginBottom: 14, resize: "vertical" }} />
@@ -122,7 +125,7 @@ export default function AdminLoyalty() {
               </select>
             </div>
           </div>
-          {rf.kind === "discount" && <Field label="€ value" value={String(rf.value)} onChange={(v) => setRf({ ...rf, value: v })} />}
+          {rf.kind === "discount" && <Field label={`${base.symbol} value`} value={String(rf.value)} onChange={(v) => setRf({ ...rf, value: v })} />}
           <div style={{ display: "flex", gap: 12, marginTop: 6 }}>
             <button onClick={() => setRewardModal(null)} style={ui.ghostBtn}>Cancel</button>
             <AuthButton type="button"><span onClick={saveReward}>{rewardModal.editing ? "Save" : "Create"}</span></AuthButton>

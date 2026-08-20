@@ -9,6 +9,7 @@ require_once __DIR__ . '/core/Request.php';
 require_once __DIR__ . '/core/Jwt.php';
 require_once __DIR__ . '/core/Auth.php';
 require_once __DIR__ . '/core/Smtp.php';
+require_once __DIR__ . '/core/Mailer.php';
 require_once __DIR__ . '/core/Router.php';
 
 // ---- CORS ----

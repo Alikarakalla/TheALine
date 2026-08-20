@@ -26,8 +26,8 @@ function MagneticButton() {
       style={{
         x,
         y,
-        background: GLOW_COLOR,
-        color: "#111111",
+        background: "#141414",
+        color: "#ffffff",
         border: "none",
         borderRadius: 999,
         padding: "20px 44px",

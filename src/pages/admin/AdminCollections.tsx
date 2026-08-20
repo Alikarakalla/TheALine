@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import { apiGet, apiSend, apiUpload } from "../../lib/api";
 import { useToast } from "../../context/Toast";
+import { useBaseMoney } from "../../context/Currency";
 import {
   AdminHeader, DataTable, Drawer, StatusPill, IconButton,
   PencilIcon, TrashIcon, PlusIcon, useConfirm, ui, INK, MUTED, FAINT, type Column,
@@ -21,7 +22,7 @@ const FIELDS = [
   { key: "category", label: "Category", kind: "set" },
   { key: "tag", label: "Tag", kind: "set" },
   { key: "brand", label: "Brand", kind: "set" },
-  { key: "price", label: "Price (€)", kind: "num" },
+  { key: "price", label: "Price", kind: "num" },
   { key: "stock", label: "Stock", kind: "num" },
 ] as const;
 const OPS: Record<string, [string, string][]> = {
@@ -71,6 +72,7 @@ const emptyForm = {
 };
 
 export default function AdminCollections() {
+  const money = useBaseMoney();
   const { show } = useToast();
   const confirm = useConfirm();
   const [list, setList] = useState<Collection[]>([]);
@@ -278,7 +280,7 @@ export default function AdminCollections() {
                           {p.images?.[0] && <img src={p.images[0]} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />}
                         </div>
                         <span style={{ flex: 1, fontSize: 14, color: INK }}>{p.name}</span>
-                        <span style={{ fontSize: 12.5, color: MUTED }}>€{Number(p.price).toFixed(2)}</span>
+                        <span style={{ fontSize: 12.5, color: MUTED }}>{money(Number(p.price))}</span>
                       </button>
                     );
                   })}

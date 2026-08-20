@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { GLOW_COLOR } from "../lib/constants";
 import { apiGet } from "../lib/api";
+
+/** Focused flows where a promo bar would cover actions or distract. */
+const QUIET_PATHS = ["/checkout", "/admin", "/order-confirmed"];
 
 type Banner = {
   id: number;
@@ -22,8 +25,10 @@ const DISMISS_KEY = "lovebag-announce-dismissed";
  */
 export default function AnnouncementBar() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [banner, setBanner] = useState<Banner | null>(null);
   const [open, setOpen] = useState(false);
+  const quiet = QUIET_PATHS.some((p) => location.pathname.startsWith(p));
 
   useEffect(() => {
     apiGet<Banner[]>("banners")
@@ -46,7 +51,7 @@ export default function AnnouncementBar() {
 
   return (
     <AnimatePresence>
-      {open && banner && (
+      {open && banner && !quiet && (
         <motion.div
           initial={{ y: "100%" }}
           animate={{ y: 0 }}
@@ -77,7 +82,7 @@ export default function AnnouncementBar() {
             <button
               onClick={() => { close(); navigate(banner.link!); }}
               style={{
-                background: GLOW_COLOR,
+                background: "#ffffff",
                 color: "#111",
                 border: "none",
                 borderRadius: 999,

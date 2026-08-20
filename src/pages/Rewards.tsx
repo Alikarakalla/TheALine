@@ -6,6 +6,7 @@ import SerifGlow from "../components/SerifGlow";
 import RewardsContent from "../components/account/RewardsContent";
 import { GLOW_COLOR, PAGE_MAX, PAGE_PAD } from "../lib/constants";
 import { useIsMobile } from "../lib/useResponsive";
+import { useBaseMoney } from "../context/Currency";
 import { useLoyalty } from "../context/Loyalty";
 import { setPageMeta, resetPageMeta } from "../lib/meta";
 
@@ -44,6 +45,7 @@ export default function Rewards() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const { points, tier, next, progressToNext, spendToNext, signedIn } = useLoyalty();
+  const money = useBaseMoney();
 
   useEffect(() => {
     setPageMeta({
@@ -66,10 +68,10 @@ export default function Rewards() {
               <SerifGlow word="Circle" italic fontSize={isMobile ? "clamp(44px, 14vw, 74px)" : 74} lineHeight={isMobile ? "clamp(40px, 13vw, 70px)" : 70} letterSpacing={-2.5} strokeWidth={isMobile ? "clamp(9px, 3vw, 16px)" : 16} fillColor="#fff" delay={0.3} />
             </div>
             <p style={{ marginTop: 18, maxWidth: 420, fontSize: 15, lineHeight: 1.7, color: "rgba(255,255,255,0.6)" }}>
-              Earn <strong style={{ color: GLOW_COLOR }}>Glow Points</strong> on everything — every €1 is a point, and points become rewards.{!signedIn && " Join free in a minute."}
+              Earn <strong style={{ color: GLOW_COLOR }}>Glow Points</strong> on everything — every {money(1, true)} is a point, and points become rewards.{!signedIn && " Join free in a minute."}
             </p>
             {!signedIn && (
-              <button onClick={() => navigate("/register")} style={{ marginTop: 24, background: GLOW_COLOR, color: "#111", border: "none", borderRadius: 999, padding: "15px 30px", cursor: "pointer", fontFamily: "'Inter Tight', sans-serif", fontSize: 15, fontWeight: 600 }}>
+              <button onClick={() => navigate("/register")} style={{ marginTop: 24, background: "#141414", color: "#ffffff", border: "none", borderRadius: 999, padding: "15px 30px", cursor: "pointer", fontFamily: "'Inter Tight', sans-serif", fontSize: 15, fontWeight: 600 }}>
                 Join the Circle — get 200 points
               </button>
             )}
@@ -80,7 +82,7 @@ export default function Rewards() {
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", fontSize: 22 }}>{tier.name}</div>
                 {next ? (
-                  <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.55)", marginTop: 2 }}>€{spendToNext.toFixed(0)} more to {next.name}</div>
+                  <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.55)", marginTop: 2 }}>{money(spendToNext, true)} more to {next.name}</div>
                 ) : (
                   <div style={{ fontSize: 12.5, color: GLOW_COLOR, marginTop: 2 }}>Top tier — thank you ✦</div>
                 )}

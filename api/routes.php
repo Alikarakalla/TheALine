@@ -19,6 +19,7 @@ require_once __DIR__ . '/controllers/MediaController.php';
 require_once __DIR__ . '/controllers/VariantsController.php';
 require_once __DIR__ . '/controllers/CustomerAuthController.php';
 require_once __DIR__ . '/controllers/AddressesController.php';
+require_once __DIR__ . '/controllers/CurrenciesController.php';
 require_once __DIR__ . '/controllers/PaymentMethodsController.php';
 require_once __DIR__ . '/controllers/FavoritesController.php';
 require_once __DIR__ . '/controllers/ReviewsController.php';
@@ -32,6 +33,14 @@ function registerRoutes(Router $router): void
 
     // ---- Admin dashboard ----
     $router->get('admin/dashboard', fn() => DashboardController::index());
+
+    // ---- Currencies ----
+    $router->get('currencies', fn() => CurrenciesController::index());
+    $router->get('admin/currencies', fn() => CurrenciesController::adminIndex());
+    $router->post('admin/currencies', fn() => CurrenciesController::create());
+    $router->put('admin/currencies/{id}/base', fn($p) => CurrenciesController::setBase($p));
+    $router->put('admin/currencies/{id}', fn($p) => CurrenciesController::update($p));
+    $router->delete('admin/currencies/{id}', fn($p) => CurrenciesController::destroy($p));
 
     // ---- Settings / theme ----
     $router->get('settings', fn() => SettingsController::publicGet());

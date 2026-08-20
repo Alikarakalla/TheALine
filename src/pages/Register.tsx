@@ -192,11 +192,11 @@ export default function Register() {
                 width: 52,
                 height: 52,
                 borderRadius: "50%",
-                background: GLOW_COLOR,
+                background: "#141414",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: "#111",
+                color: "#ffffff",
                 marginBottom: 22,
               }}
             >
@@ -249,7 +249,7 @@ export default function Register() {
                   marginTop: 12,
                   padding: "10px 14px",
                   borderRadius: 10,
-                  background: "rgba(217,196,154,0.16)",
+                  background: "rgba(20,20,20,0.04)",
                   border: "1px dashed rgba(58,58,58,0.25)",
                   fontSize: 12.5,
                   color: "rgba(58,58,58,0.78)",

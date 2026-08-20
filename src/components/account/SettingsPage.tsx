@@ -7,7 +7,8 @@ import Switch from "./Switch";
 import { TEXT_COLOR, GLOW_COLOR } from "../../lib/constants";
 import { useIsMobile } from "../../lib/useResponsive";
 import { useAuth } from "../../context/Auth";
-import { usePreferences, type Currency } from "../../context/Preferences";
+import { usePreferences } from "../../context/Preferences";
+import { useCurrency } from "../../context/Currency";
 import { useLoyalty } from "../../context/Loyalty";
 import { useToast } from "../../context/Toast";
 import { api } from "../../lib/api";
@@ -80,8 +81,8 @@ function SField({
           style={{
             width: "100%",
             background: "#fff",
-            border: `1.5px solid ${error ? "#c0563f" : focus ? GLOW_COLOR : "rgba(58,58,58,0.2)"}`,
-            boxShadow: focus && !error ? "0 0 0 3px rgba(217,196,154,0.22)" : "none",
+            border: `1.5px solid ${error ? "#c0563f" : focus ? "#141414" : "rgba(58,58,58,0.2)"}`,
+            boxShadow: focus && !error ? "0 0 0 3px rgba(20,20,20,0.07)" : "none",
             borderRadius: 10,
             padding: isPwd ? "11px 40px 11px 14px" : "11px 14px",
             fontFamily: "'Inter Tight', sans-serif",
@@ -146,8 +147,8 @@ function SButton({
       onClick={onClick}
       disabled={off}
       style={{
-        background: ghost || danger ? "none" : disabled ? "rgba(58,58,58,0.12)" : GLOW_COLOR,
-        color: danger ? "#c0563f" : ghost ? TEXT_COLOR : disabled ? "rgba(58,58,58,0.45)" : "#111",
+        background: ghost || danger ? "none" : disabled ? "rgba(58,58,58,0.12)" : "#141414",
+        color: danger ? "#c0563f" : ghost ? TEXT_COLOR : disabled ? "rgba(58,58,58,0.45)" : "#ffffff",
         border: danger
           ? "1px solid rgba(192,86,63,0.4)"
           : ghost
@@ -296,6 +297,7 @@ export default function SettingsPage() {
   const navigate = useNavigate();
   const { user, updateProfile, signOut } = useAuth();
   const { prefs, set } = usePreferences();
+  const { currencies, current } = useCurrency();
   const { birthday, setBirthday } = useLoyalty();
   const { show } = useToast();
 
@@ -487,8 +489,8 @@ export default function SettingsPage() {
         >
           <div style={{ fontSize: 13.5, fontWeight: 500, color: TEXT_COLOR }}>Currency</div>
           <select
-            value={prefs.currency}
-            onChange={(e) => set({ currency: e.target.value as Currency })}
+            value={prefs.currency || current.code}
+            onChange={(e) => set({ currency: e.target.value })}
             style={{
               background: "#fff",
               border: "1px solid rgba(58,58,58,0.22)",
@@ -501,9 +503,11 @@ export default function SettingsPage() {
               outline: "none",
             }}
           >
-            <option value="EUR">€ EUR</option>
-            <option value="USD">$ USD</option>
-            <option value="GBP">£ GBP</option>
+            {currencies.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.symbol} {c.code}
+              </option>
+            ))}
           </select>
         </div>
       </Section>

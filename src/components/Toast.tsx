@@ -8,7 +8,7 @@ import { useToast, type Toast } from "../context/Toast";
 const EASE = [0.22, 1, 0.36, 1] as const;
 
 const accentFor = (tone: Toast["tone"]) =>
-  tone === "error" ? "#c0563f" : tone === "default" ? "rgba(84,84,84,0.4)" : GLOW_COLOR;
+  tone === "error" ? "#c0563f" : tone === "default" ? "rgba(84,84,84,0.4)" : "#141414";
 
 function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string) => void }) {
   const navigate = useNavigate();
@@ -92,11 +92,12 @@ function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: (id: string)
             width: 26,
             height: 26,
             borderRadius: "50%",
-            background: toast.tone === "error" ? "rgba(192,86,63,0.12)" : GLOW_COLOR,
+            background: toast.tone === "error" ? "rgba(192,86,63,0.12)" : "#141414",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             fontSize: 14,
+            color: toast.tone === "error" ? "#c0563f" : "#ffffff",
             flexShrink: 0,
             marginTop: 1,
           }}

@@ -54,7 +54,7 @@ export default function AccountLayout() {
       {/* Browser surfaces carry the brand: selection + focus rings. */}
       <style>{`
         .account-page ::selection{background:rgba(217,196,154,0.5)}
-        .account-page button:focus-visible,.account-page a:focus-visible,.account-page input:focus-visible{outline:2px solid ${GLOW_COLOR_HEX};outline-offset:2px}
+        .account-page button:focus-visible,.account-page a:focus-visible,.account-page input:focus-visible{outline:2px solid #141414;outline-offset:2px}
         .account-row{transition:background 0.2s ease}
         .account-row:hover{background:rgba(58,58,58,0.03)}
         .account-row:hover .account-chev{transform:translateX(3px)}

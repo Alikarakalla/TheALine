@@ -8,7 +8,8 @@ import {
 import { useAuth } from "./Auth";
 import { apiCustomer } from "../lib/api";
 
-export type Currency = "EUR" | "USD" | "GBP";
+/** Display-currency code — any code defined in Admin → Currencies. */
+export type Currency = string;
 export type Prefs = {
   newsletter: boolean;
   sms: boolean;
@@ -17,7 +18,8 @@ export type Prefs = {
   reducedMotion?: boolean;
 };
 
-const DEFAULTS: Prefs = { newsletter: true, sms: false, offers: true, currency: "EUR" };
+// currency "" = follow whichever base currency is set in Admin → Currencies.
+const DEFAULTS: Prefs = { newsletter: true, sms: false, offers: true, currency: "" };
 
 type Ctx = { prefs: Prefs; set: (patch: Partial<Prefs>) => void };
 

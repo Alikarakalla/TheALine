@@ -119,7 +119,7 @@ export function AuthLayout({
         .auth-page ::selection{background:rgba(217,196,154,0.5)}
         .auth-page input{caret-color:${TEXT_COLOR_HEX}}
         .auth-page input::placeholder{color:rgba(58,58,58,0.62)}
-        .auth-page button:focus-visible,.auth-page input:focus-visible{outline:2px solid ${GLOW_COLOR_HEX};outline-offset:2px}
+        .auth-page button:focus-visible,.auth-page input:focus-visible{outline:2px solid #141414;outline-offset:2px}
         .auth-page input:-webkit-autofill{-webkit-box-shadow:0 0 0 1000px #fff inset;-webkit-text-fill-color:${TEXT_COLOR_HEX}}
         .auth-link{transition:color 0.2s ease}
         .auth-link:hover{color:${TEXT_COLOR_HEX}}
@@ -255,9 +255,9 @@ export function Field({
             width: "100%",
             background: "#fff",
             border: `1.5px solid ${
-              error ? "#c0563f" : focus ? GLOW_COLOR : "rgba(58,58,58,0.2)"
+              error ? "#c0563f" : focus ? "#141414" : "rgba(58,58,58,0.2)"
             }`,
-            boxShadow: focus && !error ? "0 0 0 3px rgba(217,196,154,0.25)" : "none",
+            boxShadow: focus && !error ? "0 0 0 3px rgba(20,20,20,0.07)" : "none",
             borderRadius: 12,
             padding: isPwd || showCheck ? "14px 46px 14px 16px" : "14px 16px",
             fontFamily: "'Inter Tight', sans-serif",
@@ -494,12 +494,12 @@ export function OtpInput({
                 error
                   ? "#c0563f"
                   : isActive
-                  ? GLOW_COLOR
+                  ? "#141414"
                   : filled
                   ? "rgba(58,58,58,0.4)"
                   : "rgba(58,58,58,0.2)"
               }`,
-              boxShadow: isActive && !error ? "0 0 0 3px rgba(217,196,154,0.25)" : "none",
+              boxShadow: isActive && !error ? "0 0 0 3px rgba(20,20,20,0.07)" : "none",
               borderRadius: 12,
               outline: "none",
               caretColor: "transparent",
@@ -551,8 +551,8 @@ export function AuthButton({
         x,
         y,
         width: "100%",
-        background: disabled ? "rgba(58,58,58,0.15)" : GLOW_COLOR,
-        color: disabled ? "rgba(58,58,58,0.5)" : "#111",
+        background: disabled ? "rgba(58,58,58,0.15)" : "#141414",
+        color: disabled ? "rgba(58,58,58,0.5)" : "#ffffff",
         border: "none",
         borderRadius: 999,
         padding: "16px 0",
@@ -708,11 +708,11 @@ export function CheckBox({
           flexShrink: 0,
           marginTop: 1,
           border: checked ? "none" : "1.5px solid rgba(58,58,58,0.35)",
-          background: checked ? GLOW_COLOR : "transparent",
+          background: checked ? "#141414" : "transparent",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          color: "#111",
+          color: "#ffffff",
           transition: "background 0.2s ease",
         }}
       >
@@ -723,7 +723,7 @@ export function CheckBox({
   );
 }
 
-/** Gold success badge with a drawn check (post-submit states). */
+/** Ink success badge with a drawn check (post-submit states). */
 export function SuccessBadge() {
   return (
     <div
@@ -731,11 +731,11 @@ export function SuccessBadge() {
         width: 52,
         height: 52,
         borderRadius: "50%",
-        background: GLOW_COLOR,
+        background: "#141414",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        color: "#111",
+        color: "#ffffff",
         marginBottom: 22,
       }}
     >

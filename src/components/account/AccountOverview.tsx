@@ -18,7 +18,7 @@ import {
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 const HAIRLINE = "1px solid rgba(58,58,58,0.1)";
-const money = (n: number) => `€${n.toFixed(2)}`;
+import { useBaseMoney } from "../../context/Currency";
 const fmtDate = (ts: number) => {
   try {
     return new Date(ts).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
@@ -37,6 +37,7 @@ const LINKS = [
 ];
 
 export default function AccountOverview() {
+  const money = useBaseMoney();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const { orders } = useOrders();
@@ -146,7 +147,7 @@ export default function AccountOverview() {
             <button
               onClick={() => navigate("/shop")}
               style={{
-                background: GLOW_COLOR,
+                background: "#141414",
                 border: "none",
                 borderRadius: 999,
                 padding: "13px 26px",
@@ -154,7 +155,7 @@ export default function AccountOverview() {
                 fontFamily: "'Inter Tight', sans-serif",
                 fontSize: 14,
                 fontWeight: 600,
-                color: "#111",
+                color: "#ffffff",
               }}
             >
               Start shopping

@@ -2,12 +2,14 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { GLOW_COLOR } from "../../lib/constants";
 import { useLoyalty } from "../../context/Loyalty";
+import { useBaseMoney } from "../../context/Currency";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
 export default function RewardsBand({ cta = true }: { cta?: boolean }) {
   const navigate = useNavigate();
   const { points, tier, next, progressToNext, spendToNext, signedIn } = useLoyalty();
+  const money = useBaseMoney();
 
   return (
     <div
@@ -92,7 +94,7 @@ export default function RewardsBand({ cta = true }: { cta?: boolean }) {
           <button
             onClick={() => navigate("/rewards")}
             style={{
-              background: GLOW_COLOR,
+              background: "#ffffff",
               color: "#111",
               border: "none",
               borderRadius: 999,
@@ -123,7 +125,7 @@ export default function RewardsBand({ cta = true }: { cta?: boolean }) {
           >
             <span>
               <span style={{ color: "#fff", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
-                €{spendToNext.toFixed(0)}
+                {money(spendToNext, true)}
               </span>{" "}
               more to <span style={{ color: "#fff", fontWeight: 600 }}>{next.name}</span>
             </span>

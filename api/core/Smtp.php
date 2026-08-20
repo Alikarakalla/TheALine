@@ -24,14 +24,20 @@ class Smtp
         }
     }
 
-    /** Send one HTML email. Throws RuntimeException on any SMTP failure. */
+    /**
+     * Send one HTML email. Optional $inline images are embedded as
+     * multipart/related parts referenced from the HTML via cid: URLs —
+     * each entry: ['cid' => 'brandlogo', 'path' => '/abs/file.png',
+     * 'type' => 'image/png']. Throws RuntimeException on any SMTP failure.
+     */
     public static function send(
         array $smtp,
         string $fromEmail,
         string $fromName,
         string $to,
         string $subject,
-        string $html
+        string $html,
+        array $inline = []
     ): void {
         $c = self::open($smtp);
         try {
@@ -46,12 +52,35 @@ class Smtp
                 'Subject: ' . self::header($subject),
                 'Message-ID: <' . bin2hex(random_bytes(12)) . '@' . $domain . '>',
                 'MIME-Version: 1.0',
-                'Content-Type: text/html; charset=UTF-8',
-                // base64 body sidesteps line-length and dot-stuffing rules
-                'Content-Transfer-Encoding: base64',
             ];
-            $body = rtrim(chunk_split(base64_encode($html), 76, "\r\n"), "\r\n");
-            $c->write(implode("\r\n", $headers) . "\r\n\r\n" . $body . "\r\n.");
+            $htmlB64 = rtrim(chunk_split(base64_encode($html), 76, "\r\n"), "\r\n");
+
+            if (!$inline) {
+                $headers[] = 'Content-Type: text/html; charset=UTF-8';
+                // base64 body sidesteps line-length and dot-stuffing rules
+                $headers[] = 'Content-Transfer-Encoding: base64';
+                $c->write(implode("\r\n", $headers) . "\r\n\r\n" . $htmlB64 . "\r\n.");
+            } else {
+                $b = 'PART_' . bin2hex(random_bytes(8));
+                $headers[] = "Content-Type: multipart/related; boundary=\"{$b}\"";
+                $parts = "--{$b}\r\n"
+                    . "Content-Type: text/html; charset=UTF-8\r\n"
+                    . "Content-Transfer-Encoding: base64\r\n\r\n"
+                    . $htmlB64 . "\r\n";
+                foreach ($inline as $img) {
+                    $data = @file_get_contents((string) ($img['path'] ?? ''));
+                    if ($data === false) continue;
+                    $name = basename((string) $img['path']);
+                    $parts .= "--{$b}\r\n"
+                        . 'Content-Type: ' . ($img['type'] ?? 'image/png') . "; name=\"{$name}\"\r\n"
+                        . "Content-Transfer-Encoding: base64\r\n"
+                        . 'Content-ID: <' . $img['cid'] . ">\r\n"
+                        . "Content-Disposition: inline; filename=\"{$name}\"\r\n\r\n"
+                        . rtrim(chunk_split(base64_encode($data), 76, "\r\n"), "\r\n") . "\r\n";
+                }
+                $parts .= "--{$b}--";
+                $c->write(implode("\r\n", $headers) . "\r\n\r\n" . $parts . "\r\n.");
+            }
             $c->expect(250);
             $c->cmd('QUIT', 221);
         } finally {

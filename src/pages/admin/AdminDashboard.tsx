@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { TEXT_COLOR, GLOW_COLOR_HEX } from "../../lib/constants";
 import { INK, MUTED, FAINT, LINE } from "./ui";
+import { useBaseCurrency, useBaseMoney } from "../../context/Currency";
 import { apiGet } from "../../lib/api";
 import { useAdminAuth } from "../../context/AdminAuth";
 import { useIsMobile } from "../../lib/useResponsive";
@@ -44,9 +45,20 @@ const PERIODS = [
   { key: "30d", label: "30 days" },
 ];
 
-const money = (n: number) => "€" + Math.round(n).toLocaleString("en-US");
-const compact = (n: number) =>
-  n >= 1000 ? "€" + (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/, "") + "k" : "€" + Math.round(n);
+/** Whole-number money in the admin base currency ("$1,240"). */
+function useRoundMoney() {
+  const fmtBase = useBaseMoney();
+  return (n: number) => fmtBase(n, true);
+}
+/** Axis-tick money — "$1.2k" for thousands, symbol placement per currency. */
+function useCompactMoney() {
+  const base = useBaseCurrency();
+  return (n: number) => {
+    const core =
+      n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/, "") + "k" : String(Math.round(n));
+    return base.symbol.length === 1 ? base.symbol + core : `${core} ${base.symbol}`;
+  };
+}
 const dayLabel = (iso: string, short: boolean) => {
   const d = new Date(iso + "T00:00:00");
   return short
@@ -240,6 +252,8 @@ function PeriodToggle({ value, onChange }: { value: string; onChange: (k: string
 /* --------------------------------------------------- revenue area chart */
 
 function RevenueChart({ data }: { data: TrendPt[] }) {
+  const money = useRoundMoney();
+  const compact = useCompactMoney();
   const { ref, w } = useWidth<HTMLDivElement>();
   const [hover, setHover] = useState<number | null>(null);
   const H = 208;
@@ -444,6 +458,7 @@ function StatusMixCard({ mix }: { mix: Dash["statusMix"] }) {
 /* -------------------------------------------------------- top products */
 
 function TopProducts({ items }: { items: Dash["topProducts"] }) {
+  const money = useRoundMoney();
   const max = Math.max(1, ...items.map((t) => t.revenue));
   return (
     <div style={{ ...CARD, padding: "16px 20px" }}>
@@ -566,6 +581,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function RecentOrders({ orders, go }: { orders: Dash["recentOrders"]; go: (p: string) => void }) {
+  const fmtBase = useBaseMoney();
   return (
     <div style={{ ...CARD, padding: "16px 20px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
@@ -613,7 +629,7 @@ function RecentOrders({ orders, go }: { orders: Dash["recentOrders"]; go: (p: st
               {o.name}
             </span>
             <span style={{ width: 74, textAlign: "right", fontSize: 13, fontWeight: 600, color: TEXT_COLOR, flexShrink: 0, ...TABULAR }}>
-              €{o.total.toFixed(2)}
+              {fmtBase(o.total)}
             </span>
             <StatusBadge status={o.status} />
           </button>
@@ -630,6 +646,7 @@ function Skeleton({ h }: { h: number }) {
 /* -------------------------------------------------------------------- page */
 
 export default function AdminDashboard() {
+  const money = useRoundMoney();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { admin } = useAdminAuth();

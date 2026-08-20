@@ -22,6 +22,17 @@ export function useSiteSettings() {
   return ctx;
 }
 
+/** Delivery pricing, controlled from Admin → Settings (Store section). */
+export function useDeliveryConfig() {
+  const { settings } = useSiteSettings();
+  const fee = parseFloat(String(settings.site?.delivery_fee ?? ""));
+  const freeOver = parseFloat(String(settings.site?.free_ship_threshold ?? ""));
+  return {
+    fee: Number.isFinite(fee) && fee >= 0 ? fee : 5.9,
+    freeOver: Number.isFinite(freeOver) && freeOver >= 0 ? freeOver : 100,
+  };
+}
+
 // Map theme keys -> CSS custom properties consumed by the design tokens.
 const VAR_MAP: Record<string, string> = {
   primary_color: "--lb-primary",

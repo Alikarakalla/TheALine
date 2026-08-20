@@ -515,13 +515,13 @@ export default function AddressDrawer({
                       flex: 1,
                       padding: "10px 0",
                       borderRadius: 999,
-                      background: on ? GLOW_COLOR : "transparent",
-                      border: on ? "1.5px solid #111" : "1.5px solid rgba(58,58,58,0.2)",
+                      background: on ? "#141414" : "transparent",
+                      border: on ? "1.5px solid #141414" : "1.5px solid rgba(58,58,58,0.2)",
                       cursor: "pointer",
                       fontFamily: "'Inter Tight', sans-serif",
                       fontSize: 13.5,
                       fontWeight: on ? 600 : 450,
-                      color: "#111",
+                      color: on ? "#ffffff" : "#111",
                       transition: "background 0.2s ease, border 0.2s ease",
                     }}
                   >
@@ -605,8 +605,8 @@ export default function AddressDrawer({
               type="submit"
               style={{
                 flex: 1,
-                background: GLOW_COLOR,
-                color: "#111",
+                background: "#141414",
+                color: "#ffffff",
                 border: "none",
                 borderRadius: 999,
                 padding: "15px 0",

@@ -3,6 +3,7 @@ import { asset } from "../lib/constants";
 import { TEXT_COLOR } from "../lib/constants";
 import { productImageFile, type Product } from "../lib/products";
 import { useProductNav } from "../context/ProductNav";
+import { useMoney } from "../context/Currency";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
@@ -16,6 +17,7 @@ export default function ProductRail({
   light?: boolean;
 }) {
   const { open } = useProductNav();
+  const fmt = useMoney();
   if (products.length === 0) return null;
   const fg = light ? TEXT_COLOR : "#fff";
 
@@ -86,7 +88,7 @@ export default function ProductRail({
               </div>
               <div style={{ marginTop: 10, fontSize: 14, fontWeight: 500, color: fg }}>{p.name}</div>
               <div style={{ fontSize: 13, color: light ? "rgba(84,84,84,0.6)" : "rgba(255,255,255,0.6)" }}>
-                €{p.price.toFixed(2)}
+                {fmt(p.price)}
               </div>
             </motion.button>
           );

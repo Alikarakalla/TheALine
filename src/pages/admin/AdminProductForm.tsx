@@ -4,6 +4,7 @@ import { TEXT_COLOR } from "../../lib/constants";
 import { apiGet, apiSend, apiUpload } from "../../lib/api";
 import { useToast } from "../../context/Toast";
 import { Drawer, ui, INK } from "./ui";
+import { useBaseCurrency, useBaseMoney } from "../../context/Currency";
 import Switch from "../../components/account/Switch";
 
 type VariantOption = { id: number; value: string; meta: string | null };
@@ -91,6 +92,8 @@ function CategoryPicker({ cats, selected, onToggle }: { cats: any[]; selected: n
 }
 
 export default function AdminProductForm({ id, onClose, onSaved }: { id: number | "new"; onClose: () => void; onSaved: () => void }) {
+  const base = useBaseCurrency();
+  const money = useBaseMoney();
   const editing = id !== "new";
   const { show } = useToast();
   const [f, setF] = useState<Form>(empty);
@@ -270,13 +273,13 @@ export default function AdminProductForm({ id, onClose, onSaved }: { id: number 
         <Lbl>Name</Lbl>
         <input value={f.name} onChange={(e) => set({ name: e.target.value })} style={{ ...ui.input, marginBottom: 14 }} />
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
-          <div><Lbl>Price (€)</Lbl><input type="number" step="0.01" value={f.price} onChange={(e) => set({ price: e.target.value })} style={ui.input} /></div>
-          <div><Lbl>Compare-at (€)</Lbl><input type="number" step="0.01" value={f.compareAtPrice} onChange={(e) => set({ compareAtPrice: e.target.value })} style={ui.input} /></div>
+          <div><Lbl>Price ({base.symbol})</Lbl><input type="number" step="0.01" value={f.price} onChange={(e) => set({ price: e.target.value })} style={ui.input} /></div>
+          <div><Lbl>Compare-at ({base.symbol})</Lbl><input type="number" step="0.01" value={f.compareAtPrice} onChange={(e) => set({ compareAtPrice: e.target.value })} style={ui.input} /></div>
           <div><Lbl>Stock</Lbl><input type="number" value={f.stock} onChange={(e) => set({ stock: e.target.value })} style={ui.input} /></div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginTop: 14 }}>
           <div><Lbl>SKU</Lbl><input value={f.sku} onChange={(e) => set({ sku: e.target.value })} style={ui.input} placeholder="e.g. TERRA-001" /></div>
-          <div><Lbl>Cost / item (€)</Lbl><input type="number" step="0.01" value={f.cost} onChange={(e) => set({ cost: e.target.value })} style={ui.input} /></div>
+          <div><Lbl>Cost / item ({base.symbol})</Lbl><input type="number" step="0.01" value={f.cost} onChange={(e) => set({ cost: e.target.value })} style={ui.input} /></div>
           <div>
             <Lbl>Brand</Lbl>
             <select value={f.brandId ?? ""} onChange={(e) => set({ brandId: e.target.value ? Number(e.target.value) : null })} style={ui.input}>
@@ -287,7 +290,7 @@ export default function AdminProductForm({ id, onClose, onSaved }: { id: number 
         </div>
         {margin != null && (
           <div style={{ fontSize: 12.5, color: "rgba(84,84,84,0.6)", marginTop: 8 }}>
-            Margin <strong style={{ color: TEXT_COLOR }}>{margin}%</strong> · Profit <strong style={{ color: TEXT_COLOR }}>€{profit!.toFixed(2)}</strong> per item
+            Margin <strong style={{ color: TEXT_COLOR }}>{margin}%</strong> · Profit <strong style={{ color: TEXT_COLOR }}>{money(profit!)}</strong> per item
           </div>
         )}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 14 }}>
@@ -399,7 +402,7 @@ export default function AdminProductForm({ id, onClose, onSaved }: { id: number 
             </div>
             <div style={{ border: "1px solid rgba(84,84,84,0.15)", borderRadius: 12, overflow: "hidden" }}>
               <div style={{ display: "grid", gridTemplateColumns: MATRIX_COLS, gap: 8, padding: "10px 12px", background: "#faf9f6", fontSize: 11, fontWeight: 600, letterSpacing: "0.5px", color: "rgba(84,84,84,0.6)", textTransform: "uppercase" }}>
-                <span>Variant</span><span>SKU</span><span>Price €</span><span>Was €</span><span>Stock</span><span>Images</span><span style={{ textAlign: "center" }}>Active</span>
+                <span>Variant</span><span>SKU</span><span>Price {base.symbol}</span><span>Was {base.symbol}</span><span>Stock</span><span>Images</span><span style={{ textAlign: "center" }}>Active</span>
               </div>
               {combos.map((combo) => {
                 const key = comboKey(combo);

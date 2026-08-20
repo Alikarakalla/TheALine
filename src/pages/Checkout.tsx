@@ -18,14 +18,15 @@ import { useCart } from "../context/Cart";
 import { useAuth } from "../context/Auth";
 import { useAddresses, type Address } from "../context/Addresses";
 import { useOrders } from "../context/Orders";
+import { useDeliveryConfig } from "../context/SiteSettings";
+import { useMoney } from "../context/Currency";
 import { api } from "../lib/api";
 import { setPageMeta, resetPageMeta } from "../lib/meta";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 const HAIRLINE = "1px solid rgba(58,58,58,0.12)";
 const IMG_BG = "rgb(231,231,231)";
-const money = (n: number) => `€${n.toFixed(2)}`;
-const STEPS = ["Information", "Shipping", "Payment"];
+const STEPS = ["Information", "Delivery", "Payment"];
 const TABULAR: React.CSSProperties = { fontVariantNumeric: "tabular-nums" };
 
 const LockGlyph = (
@@ -35,10 +36,19 @@ const LockGlyph = (
   </>
 );
 const ChevronDown = <path d="m6 9 6 6 6-6" />;
-const CardGlyph = (
+const TruckGlyph = (
   <>
-    <rect x="3" y="5.5" width="18" height="13" rx="2.5" />
-    <path d="M3 10h18" />
+    <path d="M2.5 6.5h11v10h-11z" />
+    <path d="M13.5 10h4l3 3v3.5h-7" />
+    <circle cx="6.5" cy="17.5" r="1.8" />
+    <circle cx="17" cy="17.5" r="1.8" />
+  </>
+);
+const CashGlyph = (
+  <>
+    <rect x="2.5" y="6.5" width="19" height="11" rx="2" />
+    <circle cx="12" cy="12" r="2.6" />
+    <path d="M6 9.5h.01M18 14.5h.01" />
   </>
 );
 
@@ -93,8 +103,8 @@ function CField({
         style={{
           width: "100%",
           background: "#fff",
-          border: `1.5px solid ${error ? "#c0563f" : focus ? GLOW_COLOR : "rgba(58,58,58,0.2)"}`,
-          boxShadow: focus && !error ? "0 0 0 3px rgba(217,196,154,0.22)" : "none",
+          border: `1.5px solid ${error ? "#c0563f" : focus ? "#141414" : "rgba(58,58,58,0.2)"}`,
+          boxShadow: focus && !error ? "0 0 0 3px rgba(20,20,20,0.07)" : "none",
           borderRadius: 10,
           padding: "12px 14px",
           fontFamily: "'Inter Tight', sans-serif",
@@ -178,9 +188,9 @@ function Stepper({ step, onJump }: { step: number; onJump: (s: number) => void }
                   justifyContent: "center",
                   fontSize: 12,
                   fontWeight: 600,
-                  background: done || active ? GLOW_COLOR : "transparent",
+                  background: done || active ? "#141414" : "transparent",
                   border: done || active ? "none" : "1.5px solid rgba(58,58,58,0.3)",
-                  color: done || active ? "#111" : "rgba(58,58,58,0.5)",
+                  color: done || active ? "#ffffff" : "rgba(58,58,58,0.5)",
                   ...TABULAR,
                 }}
               >
@@ -218,6 +228,7 @@ function OrderSummary({
   total: number;
 }) {
   const { items } = useCart();
+  const fmt = useMoney();
   return (
     <div>
       <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 18 }}>
@@ -284,19 +295,19 @@ function OrderSummary({
               </div>
             </div>
             <div style={{ fontSize: 13, fontWeight: 600, color: TEXT_COLOR, ...TABULAR }}>
-              {money(it.price * it.qty)}
+              {fmt(it.price * it.qty)}
             </div>
           </div>
         ))}
       </div>
       <div style={{ borderTop: HAIRLINE, paddingTop: 14, display: "flex", flexDirection: "column", gap: 9 }}>
-        <SummaryLine label="Subtotal" value={money(subtotal)} />
-        <SummaryLine label="Shipping" value={shipping === 0 ? "Free" : money(shipping)} />
+        <SummaryLine label="Subtotal" value={fmt(subtotal)} />
+        <SummaryLine label="Shipping" value={shipping === 0 ? "Free" : fmt(shipping)} />
         <div style={{ height: 1, background: "rgba(58,58,58,0.12)", margin: "5px 0" }} />
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
           <span style={{ fontSize: 14.5, fontWeight: 600, color: TEXT_COLOR }}>Total</span>
           <span style={{ fontSize: 20, fontWeight: 600, color: TEXT_COLOR, ...TABULAR }}>
-            {money(total)}
+            {fmt(total)}
           </span>
         </div>
       </div>
@@ -323,70 +334,6 @@ function SummaryLine({ label, value }: { label: string; value: string }) {
       <span style={{ fontSize: 13, color: "rgba(58,58,58,0.72)" }}>{label}</span>
       <span style={{ fontSize: 13, fontWeight: 500, color: TEXT_COLOR, ...TABULAR }}>{value}</span>
     </div>
-  );
-}
-
-/* ---------------------------------------------------------- ship option */
-
-function ShipOption({
-  selected,
-  onSelect,
-  title,
-  sub,
-  price,
-}: {
-  selected: boolean;
-  onSelect: () => void;
-  title: string;
-  sub: string;
-  price: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-pressed={selected}
-      style={{
-        width: "100%",
-        display: "flex",
-        alignItems: "center",
-        gap: 13,
-        textAlign: "left",
-        background: selected ? "rgba(217,196,154,0.14)" : "#fff",
-        border: `1.5px solid ${selected ? "#111" : "rgba(58,58,58,0.18)"}`,
-        borderRadius: 12,
-        padding: "15px 16px",
-        cursor: "pointer",
-        fontFamily: "'Inter Tight', sans-serif",
-        marginBottom: 10,
-        transition: "border 0.2s ease, background 0.2s ease",
-      }}
-    >
-      <span
-        style={{
-          width: 18,
-          height: 18,
-          borderRadius: "50%",
-          border: selected ? "none" : "1.5px solid rgba(58,58,58,0.35)",
-          background: selected ? GLOW_COLOR : "transparent",
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "#111",
-          flexShrink: 0,
-          transition: "background 0.2s ease",
-        }}
-      >
-        {selected && <Glyph size={10}>{CheckGlyph}</Glyph>}
-      </span>
-      <span style={{ flex: 1 }}>
-        <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: TEXT_COLOR }}>{title}</span>
-        <span style={{ display: "block", fontSize: 12.5, color: "rgba(58,58,58,0.62)", marginTop: 1 }}>
-          {sub}
-        </span>
-      </span>
-      <span style={{ fontSize: 13.5, fontWeight: 600, color: TEXT_COLOR, ...TABULAR }}>{price}</span>
-    </button>
   );
 }
 
@@ -420,8 +367,8 @@ export default function Checkout() {
    *  while someone is typing. */
   const [phoneSeed, setPhoneSeed] = useState(0);
   const prefilled = useRef(false);
-  const [ship, setShip] = useState<"standard" | "express">("standard");
-  const [pay, setPay] = useState({ card: "", exp: "", cvc: "", name: "" });
+  const { fee: deliveryFee, freeOver } = useDeliveryConfig();
+  const fmt = useMoney();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [processing, setProcessing] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
@@ -482,9 +429,11 @@ export default function Checkout() {
     return () => resetPageMeta();
   }, []);
 
+  // One delivery method; the fee and free-over threshold come from
+  // Admin → Settings (Store section).
   const shippingCost = useMemo(
-    () => (ship === "express" ? 9.9 : subtotal >= 100 ? 0 : 5.9),
-    [ship, subtotal]
+    () => (subtotal >= freeOver ? 0 : deliveryFee),
+    [subtotal, freeOver, deliveryFee]
   );
   const total = subtotal + shippingCost;
 
@@ -509,17 +458,6 @@ export default function Checkout() {
     setErrors(e);
     return Object.keys(e).length === 0;
   };
-  const validatePay = () => {
-    const e: Record<string, string> = {};
-    const digits = pay.card.replace(/\s/g, "");
-    if (digits.length < 15 || !/^\d+$/.test(digits)) e.card = "Enter a valid card number.";
-    if (!/^\d{2}\/\d{2}$/.test(pay.exp)) e.exp = "MM/YY";
-    if (!/^\d{3,4}$/.test(pay.cvc)) e.cvc = "3–4 digits";
-    if (!pay.name.trim()) e.name = "Required";
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
   const next = () => {
     if (step === 1 && !validateInfo()) return;
     setErrors({});
@@ -532,7 +470,6 @@ export default function Checkout() {
   };
 
   const placeOrder = async () => {
-    if (!validatePay()) return;
     setProcessing(true);
     const fullName = `${info.firstName} ${info.lastName}`.trim();
     const body = {
@@ -545,7 +482,10 @@ export default function Checkout() {
       subtotal,
       shipping: shippingCost,
       total,
-      shippingMethod: ship,
+      // Cash on delivery: the order starts unpaid until the courier collects.
+      status: "pending",
+      shippingMethod: "delivery",
+      paymentMethod: "cod",
       shippingAddress: (() => {
         // When a saved address is used untouched, its delivery pin rides along.
         const saved = addrId ? addresses.find((a) => a.id === addrId) : undefined;
@@ -579,16 +519,9 @@ export default function Checkout() {
       clear();
       navigate("/order-confirmed", { state: { orderNumber: res.number, pointsEarned: res.pointsEarned } });
     } catch (e: any) {
-      setErrors({ card: e?.message || "We couldn't process your order. Please try again." });
+      setErrors({ order: e?.message || "We couldn't place your order. Please try again." });
       setProcessing(false);
     }
-  };
-
-  const fmtCard = (v: string) =>
-    v.replace(/\D/g, "").slice(0, 16).replace(/(.{4})/g, "$1 ").trim();
-  const fmtExp = (v: string) => {
-    const d = v.replace(/\D/g, "").slice(0, 4);
-    return d.length >= 3 ? `${d.slice(0, 2)}/${d.slice(2)}` : d;
   };
 
   return (
@@ -606,7 +539,7 @@ export default function Checkout() {
         .checkout-page ::selection{background:rgba(217,196,154,0.5)}
         .checkout-page input{caret-color:${TEXT_COLOR_HEX}}
         .checkout-page input::placeholder{color:rgba(58,58,58,0.62)}
-        .checkout-page button:focus-visible,.checkout-page input:focus-visible,.checkout-page select:focus-visible{outline:2px solid ${GLOW_COLOR_HEX};outline-offset:2px}
+        .checkout-page button:focus-visible,.checkout-page input:focus-visible,.checkout-page select:focus-visible{outline:2px solid #141414;outline-offset:2px}
       `}</style>
       <Header />
       <div
@@ -685,7 +618,7 @@ export default function Checkout() {
                   </motion.span>
                 </span>
                 <span style={{ fontSize: 16, fontWeight: 600, color: TEXT_COLOR, ...TABULAR }}>
-                  {money(total)}
+                  {fmt(total)}
                 </span>
               </button>
               <AnimatePresence initial={false}>
@@ -710,13 +643,13 @@ export default function Checkout() {
             style={{
               display: "flex",
               flexDirection: isMobile ? "column" : "row",
-              gap: isMobile ? 0 : 64,
-              justifyContent: "space-between",
+              gap: isMobile ? 0 : 72,
               alignItems: "flex-start",
             }}
           >
-            {/* form column */}
-            <div style={{ flex: "0 1 680px", minWidth: 0, width: isMobile ? "100%" : "auto" }}>
+            {/* form column — fluid, so the composition spans the full header
+                width: form at the logo edge, summary at the nav edge. */}
+            <div style={{ flex: "1 1 auto", minWidth: 0, width: isMobile ? "100%" : "auto" }}>
               <Stepper step={step} onJump={setStep} />
 
               {/* entrance-only step change — never gated on exit animations */}
@@ -760,7 +693,7 @@ export default function Checkout() {
                               aria-pressed={on}
                               style={{
                                 textAlign: "left",
-                                background: on ? "rgba(217,196,154,0.14)" : "#fff",
+                                background: on ? "rgba(20,20,20,0.04)" : "#fff",
                                 border: `1.5px solid ${on ? "#111" : "rgba(58,58,58,0.18)"}`,
                                 borderRadius: 12,
                                 padding: "12px 14px",
@@ -788,8 +721,8 @@ export default function Checkout() {
                                       width: 18,
                                       height: 18,
                                       borderRadius: "50%",
-                                      background: GLOW_COLOR,
-                                      color: "#111",
+                                      background: "#141414",
+                                      color: "#ffffff",
                                       display: "inline-flex",
                                       alignItems: "center",
                                       justifyContent: "center",
@@ -883,45 +816,59 @@ export default function Checkout() {
                         gap: 7,
                         fontSize: 12,
                         color: "rgba(58,58,58,0.62)",
-                        margin: "2px 0 18px",
+                        margin: "2px 0 0",
                       }}
                     >
                       <Glyph size={12}>{LockGlyph}</Glyph> Delivering across Lebanon.
                     </div>
-                    <AuthButton type="button" onClick={next}>
-                      Continue to shipping
-                    </AuthButton>
+                    <StickyActions>
+                      <AuthButton type="button" onClick={next}>
+                        Continue to shipping
+                      </AuthButton>
+                    </StickyActions>
                   </div>
                 )}
 
                 {step === 2 && (
                   <div>
-                    <SectionTitle>Shipping method</SectionTitle>
-                    <ShipOption
-                      selected={ship === "standard"}
-                      onSelect={() => setShip("standard")}
-                      title="Standard"
-                      sub="3–5 business days"
-                      price={subtotal >= 100 ? "Free" : money(5.9)}
-                    />
-                    <ShipOption
-                      selected={ship === "express"}
-                      onSelect={() => setShip("express")}
-                      title="Express"
-                      sub="1–2 business days"
-                      price={money(9.9)}
-                    />
-                    {subtotal >= 100 && ship === "standard" && (
-                      <div style={{ fontSize: 12.5, color: "rgba(58,58,58,0.62)", margin: "4px 0 0" }}>
-                        Standard shipping is free on orders over €100.
-                      </div>
-                    )}
-                    <div style={{ display: "flex", gap: 12, marginTop: 22 }}>
+                    <SectionTitle>Delivery</SectionTitle>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 14,
+                        background: "rgba(20,20,20,0.04)",
+                        border: "1.5px solid #111",
+                        borderRadius: 12,
+                        padding: "16px 18px",
+                      }}
+                    >
+                      <span style={{ color: TEXT_COLOR, display: "inline-flex" }}>
+                        <Glyph size={20}>{TruckGlyph}</Glyph>
+                      </span>
+                      <span style={{ flex: 1 }}>
+                        <span style={{ display: "block", fontSize: 14.5, fontWeight: 600, color: TEXT_COLOR }}>
+                          Delivery across Lebanon
+                        </span>
+                        <span style={{ display: "block", fontSize: 12.5, color: "rgba(58,58,58,0.62)", marginTop: 2 }}>
+                          2–4 business days, to your door
+                        </span>
+                      </span>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: TEXT_COLOR, ...TABULAR }}>
+                        {shippingCost === 0 ? "Free" : fmt(shippingCost)}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 12.5, color: "rgba(58,58,58,0.62)", marginTop: 10 }}>
+                      {shippingCost === 0
+                        ? `Free delivery on orders over ${fmt(freeOver)} — this one qualifies.`
+                        : `Delivery is free on orders over ${fmt(freeOver)}.`}
+                    </div>
+                    <StickyActions>
                       <BackBtn onClick={back} />
                       <AuthButton type="button" onClick={next}>
                         Continue to payment
                       </AuthButton>
-                    </div>
+                    </StickyActions>
                   </div>
                 )}
 
@@ -930,53 +877,65 @@ export default function Checkout() {
                     <SectionTitle>Payment</SectionTitle>
                     <div
                       style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 14,
+                        background: "rgba(20,20,20,0.04)",
+                        border: "1.5px solid #111",
+                        borderRadius: 12,
+                        padding: "16px 18px",
+                      }}
+                    >
+                      <span style={{ color: TEXT_COLOR, display: "inline-flex" }}>
+                        <Glyph size={20}>{CashGlyph}</Glyph>
+                      </span>
+                      <span style={{ flex: 1 }}>
+                        <span style={{ display: "block", fontSize: 14.5, fontWeight: 600, color: TEXT_COLOR }}>
+                          Cash on delivery
+                        </span>
+                        <span style={{ display: "block", fontSize: 12.5, color: "rgba(58,58,58,0.62)", marginTop: 2 }}>
+                          Pay {fmt(total)} in cash when your order arrives — no card needed.
+                        </span>
+                      </span>
+                      <span
+                        style={{
+                          width: 18,
+                          height: 18,
+                          borderRadius: "50%",
+                          background: "#141414",
+                          color: "#ffffff",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <Glyph size={10}>{CheckGlyph}</Glyph>
+                      </span>
+                    </div>
+                    <div
+                      style={{
                         fontSize: 12.5,
                         color: "rgba(58,58,58,0.72)",
-                        marginBottom: 16,
+                        margin: "12px 0 0",
                         display: "flex",
                         alignItems: "center",
                         gap: 7,
                       }}
                     >
-                      <Glyph size={13}>{LockGlyph}</Glyph> All transactions are secure and encrypted.
+                      <Glyph size={13}>{LockGlyph}</Glyph> Please have the exact amount ready if you can.
                     </div>
-                    <div style={{ position: "relative" }}>
-                      <CField
-                        label="Card number"
-                        value={pay.card}
-                        onChange={(v) => setPay((p) => ({ ...p, card: fmtCard(v) }))}
-                        error={errors.card}
-                        placeholder="1234 5678 9012 3456"
-                        inputMode="numeric"
-                        autoComplete="cc-number"
-                      />
-                      <span
-                        style={{
-                          position: "absolute",
-                          right: 14,
-                          top: 36,
-                          color: "rgba(58,58,58,0.4)",
-                          display: "inline-flex",
-                        }}
-                      >
-                        <Glyph size={16}>{CardGlyph}</Glyph>
-                      </span>
-                    </div>
-                    <Row>
-                      <Half>
-                        <CField label="Expiry (MM/YY)" value={pay.exp} onChange={(v) => setPay((p) => ({ ...p, exp: fmtExp(v) }))} error={errors.exp} placeholder="MM/YY" inputMode="numeric" autoComplete="cc-exp" />
-                      </Half>
-                      <Half>
-                        <CField label="CVC" value={pay.cvc} onChange={(v) => setPay((p) => ({ ...p, cvc: v.replace(/\D/g, "").slice(0, 4) }))} error={errors.cvc} placeholder="123" inputMode="numeric" autoComplete="cc-csc" />
-                      </Half>
-                    </Row>
-                    <CField label="Name on card" value={pay.name} onChange={(v) => setPay((p) => ({ ...p, name: v }))} error={errors.name} autoComplete="cc-name" />
-                    <div style={{ display: "flex", gap: 12, marginTop: 22 }}>
+                    {errors.order && (
+                      <div role="alert" style={{ fontSize: 12.5, color: "#c0563f", marginTop: 12 }}>
+                        {errors.order}
+                      </div>
+                    )}
+                    <StickyActions>
                       <BackBtn onClick={back} />
                       <AuthButton type="button" onClick={placeOrder} loading={processing}>
-                        {processing ? "Processing…" : `Place order — ${money(total)}`}
+                        {processing ? "Placing order…" : `Place order — ${fmt(total)}`}
                       </AuthButton>
-                    </div>
+                    </StickyActions>
                   </div>
                 )}
               </motion.div>
@@ -1005,6 +964,25 @@ export default function Checkout() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Pins the step's actions to the bottom of the viewport while the form
+ *  scrolls, so Continue is always one tap away. */
+function StickyActions({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        position: "sticky",
+        bottom: 0,
+        zIndex: 5,
+        marginTop: 20,
+        padding: "14px 0 16px",
+        background: "linear-gradient(to top, #ffffff 72%, rgba(255,255,255,0))",
+      }}
+    >
+      <div style={{ display: "flex", gap: 12 }}>{children}</div>
     </div>
   );
 }

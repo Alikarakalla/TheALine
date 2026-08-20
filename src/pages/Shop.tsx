@@ -4,6 +4,7 @@ import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import Header from "../components/Header";
 import SerifGlow from "../components/SerifGlow";
 import ProductCard from "../components/ProductCard";
+import { useMoney } from "../context/Currency";
 import {
   TEXT_COLOR,
   GLOW_COLOR,
@@ -27,11 +28,22 @@ const SORTS = [
   { id: "name", label: "Name: A–Z" },
 ];
 
+// Bounds are BASE-currency amounts; labels are rendered through the currency
+// formatter so they follow the shopper's selected currency.
 const PRICE_BUCKETS = [
-  { id: "u130", label: "Under €130", test: (p: number) => p < 130 },
-  { id: "130-150", label: "€130 – €150", test: (p: number) => p >= 130 && p <= 150 },
-  { id: "o150", label: "Over €150", test: (p: number) => p > 150 },
+  { id: "u130", min: 0, max: 130, test: (p: number) => p < 130 },
+  { id: "130-150", min: 130, max: 150, test: (p: number) => p >= 130 && p <= 150 },
+  { id: "o150", min: 150, max: Infinity, test: (p: number) => p > 150 },
 ];
+const bucketLabel = (
+  b: (typeof PRICE_BUCKETS)[number],
+  m: (n: number, approx?: boolean) => string
+) =>
+  b.min === 0
+    ? `Under ${m(b.max, true)}`
+    : b.max === Infinity
+      ? `Over ${m(b.min, true)}`
+      : `${m(b.min, true)} – ${m(b.max, true)}`;
 
 const toggle = (arr: string[], v: string) =>
   arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
@@ -121,8 +133,8 @@ function FilterPopover({
         {activeCount > 0 && (
           <span
             style={{
-              background: GLOW_COLOR,
-              color: "#111",
+              background: "#141414",
+              color: "#ffffff",
               borderRadius: 999,
               padding: "1px 7px",
               fontSize: 11,
@@ -362,7 +374,7 @@ function ColorFilterBody({
               background: c.hex,
               cursor: "pointer",
               border: on ? "2px solid #111" : "2px solid rgba(58,58,58,0.2)",
-              outline: on ? `2px solid ${GLOW_COLOR}` : "none",
+              outline: "none",
               outlineOffset: 2,
               transition: "outline 0.2s ease, border 0.2s ease",
             }}
@@ -377,12 +389,12 @@ function ColorFilterBody({
               height: 28,
               padding: "0 12px",
               borderRadius: 999,
-              background: on ? GLOW_COLOR : "transparent",
+              background: on ? "#141414" : "transparent",
               cursor: "pointer",
               fontFamily: "'Inter Tight', sans-serif",
               fontSize: 12.5,
               fontWeight: on ? 600 : 400,
-              color: "#111",
+              color: on ? "#ffffff" : "#111",
               border: on ? "2px solid #111" : "2px solid rgba(58,58,58,0.2)",
               transition: "background 0.2s ease, border 0.2s ease",
             }}
@@ -402,12 +414,13 @@ function PriceFilterBody({
   buckets: string[];
   onToggleBucket: (v: string) => void;
 }) {
+  const fmt = useMoney();
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       {PRICE_BUCKETS.map((b) => (
         <Check
           key={b.id}
-          label={b.label}
+          label={bucketLabel(b, fmt)}
           checked={buckets.includes(b.id)}
           onChange={() => onToggleBucket(b.id)}
         />
@@ -501,12 +514,12 @@ function Check({
           height: 18,
           borderRadius: 5,
           border: checked ? "none" : "1.5px solid rgba(58,58,58,0.35)",
-          background: checked ? GLOW_COLOR : "transparent",
+          background: checked ? "#141414" : "transparent",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           flexShrink: 0,
-          color: "#111",
+          color: "#ffffff",
           transition: "background 0.2s ease",
         }}
       >
@@ -553,6 +566,7 @@ export default function Shop() {
     if (slug && hasTree && bySlug.has(slug)) setCats([slug]);
   }, [searchParams, hasTree, bySlug]);
 
+  const fmt = useMoney();
   const results = useMemo(() => {
     let list = products.filter((p) => {
       if (cats.length) {
@@ -597,7 +611,7 @@ export default function Shop() {
     ...buckets.map((b) => ({
       kind: "bucket" as const,
       value: b,
-      label: PRICE_BUCKETS.find((x) => x.id === b)!.label,
+      label: bucketLabel(PRICE_BUCKETS.find((x) => x.id === b)!, fmt),
     })),
   ];
   const clearAll = () => {
@@ -636,7 +650,7 @@ export default function Shop() {
       {/* Browser surfaces carry the brand too: selection + focus rings. */}
       <style>{`
         .shop-page ::selection{background:rgba(217,196,154,0.5)}
-        .shop-page button:focus-visible{outline:2px solid ${GLOW_COLOR_HEX};outline-offset:2px}
+        .shop-page button:focus-visible{outline:2px solid #141414;outline-offset:2px}
         .shop-chip{transition:border 0.2s ease,color 0.2s ease}
         .shop-chip:hover{border-color:rgba(58,58,58,0.55)}
         .shop-clear{transition:color 0.2s ease}
@@ -728,8 +742,8 @@ export default function Shop() {
               {activeChips.length > 0 && (
                 <span
                   style={{
-                    background: GLOW_COLOR,
-                    color: "#111",
+                    background: "#141414",
+                    color: "#ffffff",
                     borderRadius: 999,
                     padding: "1px 7px",
                     fontSize: 11,
@@ -855,7 +869,7 @@ export default function Shop() {
             <button
               onClick={clearAll}
               style={{
-                background: GLOW_COLOR,
+                background: "#141414",
                 border: "none",
                 borderRadius: 999,
                 padding: "13px 28px",
@@ -863,7 +877,7 @@ export default function Shop() {
                 fontFamily: "'Inter Tight', sans-serif",
                 fontSize: 14,
                 fontWeight: 600,
-                color: "#111",
+                color: "#ffffff",
               }}
             >
               Clear all filters
@@ -973,7 +987,7 @@ export default function Shop() {
                   onClick={() => setDrawer(false)}
                   style={{
                     flex: 2,
-                    background: GLOW_COLOR,
+                    background: "#141414",
                     border: "none",
                     borderRadius: 999,
                     padding: "13px 0",
@@ -981,7 +995,7 @@ export default function Shop() {
                     fontFamily: "'Inter Tight', sans-serif",
                     fontSize: 14,
                     fontWeight: 600,
-                    color: "#111",
+                    color: "#ffffff",
                   }}
                 >
                   Show {results.length} result{results.length === 1 ? "" : "s"}

@@ -20,7 +20,7 @@ export default function Switch({
         border: "none",
         cursor: "pointer",
         padding: 3,
-        background: on ? GLOW_COLOR : "rgba(84,84,84,0.25)",
+        background: on ? "#141414" : "rgba(84,84,84,0.25)",
         display: "flex",
         justifyContent: on ? "flex-end" : "flex-start",
         transition: "background 0.25s ease",

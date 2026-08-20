@@ -5,12 +5,13 @@ import { apiGet, apiSend } from "../../lib/api";
 import { useToast } from "../../context/Toast";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
-const money = (n: number) => `€${n.toFixed(2)}`;
+import { useBaseMoney } from "../../context/Currency";
 const fmt = (s: string) => { try { return new Date(s).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }); } catch { return s; } };
 const STATUSES = ["pending", "paid", "processing", "shipped", "delivered", "cancelled", "refunded"];
 const statusColor = (s: string) => s === "delivered" ? "#6a8f00" : s === "cancelled" || s === "refunded" ? "#c0563f" : s === "shipped" ? "#3b7" : "#b8860b";
 
 export default function AdminOrders() {
+  const money = useBaseMoney();
   const { show } = useToast();
   const [list, setList] = useState<any[]>([]);
   const [filter, setFilter] = useState("");

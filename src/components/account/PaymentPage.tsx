@@ -63,7 +63,7 @@ function CardVisual({ card, onRemove, onDefault }: { card: Card; onRemove: () =>
         <span>{card.expMonth}/{card.expYear}</span>
       </div>
       {card.isDefault && (
-        <span style={{ position: "absolute", top: 22, right: 70, fontSize: 9.5, fontWeight: 600, letterSpacing: "1px", color: "#111", background: GLOW_COLOR, borderRadius: 999, padding: "2px 7px" }}>DEFAULT</span>
+        <span style={{ position: "absolute", top: 22, right: 70, fontSize: 9.5, fontWeight: 600, letterSpacing: "1px", color: "#ffffff", background: "#141414", borderRadius: 999, padding: "2px 7px" }}>DEFAULT</span>
       )}
       <div style={{ position: "absolute", bottom: 10, right: 14, display: "flex", gap: 12 }}>
         {!card.isDefault && <button onClick={onDefault} style={cardLink}>Set default</button>}
@@ -84,7 +84,7 @@ export default function PaymentPage() {
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <h1 style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.5px", color: TEXT_COLOR }}>Payment</h1>
-        <button onClick={() => setModal(true)} style={{ background: GLOW_COLOR, border: "none", borderRadius: 999, padding: "11px 20px", cursor: "pointer", fontFamily: "'Inter Tight', sans-serif", fontSize: 14, fontWeight: 600, color: "#111" }}>+ Add card</button>
+        <button onClick={() => setModal(true)} style={{ background: "#141414", border: "none", borderRadius: 999, padding: "11px 20px", cursor: "pointer", fontFamily: "'Inter Tight', sans-serif", fontSize: 14, fontWeight: 600, color: "#ffffff" }}>+ Add card</button>
       </div>
 
       {cards.length === 0 ? (

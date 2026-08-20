@@ -3,7 +3,7 @@ import { GLOW_COLOR, TEXT_COLOR } from "../lib/constants";
 type Kind = "New" | "Bestseller" | "Limited" | "Low stock" | "Sold out";
 
 const STYLES: Record<Kind, React.CSSProperties> = {
-  New: { background: GLOW_COLOR, color: "#111" },
+  New: { background: "#141414", color: "#ffffff" },
   Bestseller: { background: "#111", color: "#fff" },
   Limited: { background: "#6e2230", color: "#fff" },
   "Low stock": { background: "rgba(255,255,255,0.85)", color: TEXT_COLOR, border: "1px solid rgba(84,84,84,0.25)" },

@@ -13,18 +13,16 @@ import {
 } from "../lib/constants";
 import { useIsMobile } from "../lib/useResponsive";
 import { useCart, type CartItem } from "../context/Cart";
+import { useDeliveryConfig } from "../context/SiteSettings";
+import { useMoney } from "../context/Currency";
 import { setPageMeta, resetPageMeta } from "../lib/meta";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
-const FREE_SHIP = 100;
-const SHIP_FEE = 5.9;
 const PROMO: Record<string, number> = { LOVE10: 0.1, WELCOME: 0.15 };
 
 // One image-box gray across the funnel (same as the product page gallery).
 const IMG_BG = "rgb(231,231,231)";
 const HAIRLINE = "1px solid rgba(58,58,58,0.12)";
-
-const money = (n: number) => `€${n.toFixed(2)}`;
 
 /* Minimal 1.6-stroke icons — one consistent weight, drawn, not emoji. */
 function Icon({
@@ -125,6 +123,7 @@ function LineItem({
   onQty: (q: number) => void;
   onRemove: () => void;
 }) {
+  const fmt = useMoney();
   return (
     <motion.div
       layout
@@ -194,7 +193,7 @@ function LineItem({
               fontVariantNumeric: "tabular-nums",
             }}
           >
-            {money(item.price * item.qty)}
+            {fmt(item.price * item.qty)}
           </div>
         </div>
 
@@ -231,7 +230,7 @@ function LineItem({
           )}
           {item.qty > 1 && (
             <span style={{ color: "rgba(58,58,58,0.55)" }}>
-              — {money(item.price)} each
+              — {fmt(item.price)} each
             </span>
           )}
         </div>
@@ -297,8 +296,8 @@ function CheckoutButton({ disabled }: { disabled: boolean }) {
         alignItems: "center",
         justifyContent: "center",
         gap: 10,
-        background: disabled ? "rgba(58,58,58,0.15)" : GLOW_COLOR,
-        color: disabled ? "rgba(58,58,58,0.5)" : "#111",
+        background: disabled ? "rgba(58,58,58,0.15)" : "#141414",
+        color: disabled ? "rgba(58,58,58,0.5)" : "#ffffff",
         border: "none",
         borderRadius: 999,
         padding: "17px 0",
@@ -331,12 +330,15 @@ export default function Cart() {
     return () => resetPageMeta();
   }, []);
 
+  // Delivery pricing is controlled from Admin → Settings.
+  const { fee: SHIP_FEE, freeOver: FREE_SHIP } = useDeliveryConfig();
+  const fmt = useMoney();
   const discount = applied ? subtotal * PROMO[applied] : 0;
   const afterDiscount = subtotal - discount;
   const shipping = items.length === 0 || afterDiscount >= FREE_SHIP ? 0 : SHIP_FEE;
   const total = afterDiscount + shipping;
   const toFree = Math.max(0, FREE_SHIP - afterDiscount);
-  const progress = Math.min(100, (afterDiscount / FREE_SHIP) * 100);
+  const progress = Math.min(100, FREE_SHIP > 0 ? (afterDiscount / FREE_SHIP) * 100 : 100);
 
   const applyCode = () => {
     const c = code.trim().toUpperCase();
@@ -367,7 +369,7 @@ export default function Cart() {
         .cart-page ::selection{background:rgba(217,196,154,0.5)}
         .cart-page input{caret-color:${TEXT_COLOR_HEX}}
         .cart-page input::placeholder{color:rgba(58,58,58,0.62)}
-        .cart-page button:focus-visible,.cart-page input:focus-visible{outline:2px solid ${GLOW_COLOR_HEX};outline-offset:2px}
+        .cart-page button:focus-visible,.cart-page input:focus-visible{outline:2px solid #141414;outline-offset:2px}
         .cart-remove{transition:color 0.2s ease}
         .cart-remove:hover{color:${TEXT_COLOR_HEX}}
       `}</style>
@@ -451,7 +453,7 @@ export default function Cart() {
               <button
                 onClick={() => navigate("/shop")}
                 style={{
-                  background: GLOW_COLOR,
+                  background: "#141414",
                   border: "none",
                   borderRadius: 999,
                   padding: "16px 32px",
@@ -459,7 +461,7 @@ export default function Cart() {
                   fontFamily: "'Inter Tight', sans-serif",
                   fontSize: 15,
                   fontWeight: 600,
-                  color: "#111",
+                  color: "#ffffff",
                 }}
               >
                 Start shopping
@@ -562,7 +564,7 @@ export default function Cart() {
                       <span>
                         You're{" "}
                         <strong style={{ color: TEXT_COLOR, fontVariantNumeric: "tabular-nums" }}>
-                          {money(toFree)}
+                          {fmt(toFree)}
                         </strong>{" "}
                         away from free shipping
                       </span>
@@ -586,7 +588,7 @@ export default function Cart() {
                     <motion.div
                       animate={{ width: `${progress}%` }}
                       transition={{ duration: 0.5, ease: EASE }}
-                      style={{ height: "100%", background: GLOW_COLOR }}
+                      style={{ height: "100%", background: "#141414" }}
                     />
                   </div>
                 </div>
@@ -661,11 +663,11 @@ export default function Cart() {
 
                 {/* totals */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
-                  <Row label="Subtotal" value={money(subtotal)} />
+                  <Row label="Subtotal" value={fmt(subtotal)} />
                   {discount > 0 && (
-                    <Row label="Discount" value={`−${money(discount)}`} accent />
+                    <Row label="Discount" value={`−${fmt(discount)}`} accent />
                   )}
-                  <Row label="Shipping" value={shipping === 0 ? "Free" : money(shipping)} />
+                  <Row label="Shipping" value={shipping === 0 ? "Free" : fmt(shipping)} />
                   <div style={{ height: 1, background: "rgba(58,58,58,0.12)", margin: "8px 0" }} />
                   <div
                     style={{
@@ -685,7 +687,7 @@ export default function Cart() {
                         fontVariantNumeric: "tabular-nums",
                       }}
                     >
-                      {money(total)}
+                      {fmt(total)}
                     </span>
                   </div>
                 </div>

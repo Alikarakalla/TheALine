@@ -213,8 +213,8 @@ function CartButton({ color }: { color: string }) {
             height: 16,
             padding: "0 4px",
             borderRadius: 999,
-            background: GLOW_COLOR,
-            color: "#111111",
+            background: "#141414",
+            color: "#ffffff",
             fontFamily: "'Inter Tight', sans-serif",
             fontSize: 10,
             fontWeight: 700,
@@ -383,7 +383,7 @@ function OverlayMenu({ onClose }: { onClose: () => void }) {
         style={{
           position: "absolute",
           inset: 0,
-          background: GLOW_COLOR,
+          background: "#141414",
           transformOrigin: "top",
           zIndex: 1,
         }}

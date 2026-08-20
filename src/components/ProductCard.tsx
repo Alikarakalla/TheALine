@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { TEXT_COLOR, GLOW_COLOR, asset } from "../lib/constants";
 import { productImageFile, type Product } from "../lib/products";
 import { useProductNav } from "../context/ProductNav";
+import { useMoney } from "../context/Currency";
 import FavoriteButton from "./FavoriteButton";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -73,6 +74,7 @@ const ProductCard = forwardRef<HTMLDivElement, ProductCardProps>(function Produc
   ref
 ) {
   const { open } = useProductNav();
+  const fmt = useMoney();
   const [hover, setHover] = useState(false);
   const img = product.images?.[0] || asset(productImageFile(product));
 
@@ -98,7 +100,7 @@ const ProductCard = forwardRef<HTMLDivElement, ProductCardProps>(function Produc
         cursor: "pointer",
         width: "100%",
         background: highlighted ? "rgba(0,0,0,0.03)" : "transparent",
-        border: highlighted ? `1px solid ${GLOW_COLOR}` : "1px solid transparent",
+        border: highlighted ? "1px solid #141414" : "1px solid transparent",
         borderRadius: 14,
         padding: highlighted ? 8 : 0,
         fontFamily: "'Inter Tight', sans-serif",
@@ -178,8 +180,8 @@ const ProductCard = forwardRef<HTMLDivElement, ProductCardProps>(function Produc
           </div>
           <div style={{ fontSize: 12, color: "rgba(84,84,84,0.55)", marginTop: 2 }}>{product.category}</div>
         </div>
-        <div style={{ fontSize: compact ? 13 : 15, fontWeight: 500, color: TEXT_COLOR, whiteSpace: "nowrap" }}>
-          €{product.price.toFixed(2)}
+        <div style={{ fontSize: compact ? 13 : 15, fontWeight: 500, color: TEXT_COLOR, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>
+          {fmt(product.price)}
         </div>
       </div>
     </motion.div>

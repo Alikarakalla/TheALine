@@ -106,7 +106,7 @@ export default function Favorites() {
             <button
               onClick={() => navigate("/shop")}
               style={{
-                background: GLOW_COLOR,
+                background: "#141414",
                 border: "none",
                 borderRadius: 999,
                 padding: "16px 32px",
@@ -114,7 +114,7 @@ export default function Favorites() {
                 fontFamily: "'Inter Tight', sans-serif",
                 fontSize: 15,
                 fontWeight: 600,
-                color: "#111",
+                color: "#ffffff",
               }}
             >
               Explore the collection

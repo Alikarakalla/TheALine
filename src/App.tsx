@@ -27,9 +27,11 @@ import AdminHomepage from "./pages/admin/AdminHomepage";
 import AdminBanners from "./pages/admin/AdminBanners";
 import AdminSeo from "./pages/admin/AdminSeo";
 import AdminSettings from "./pages/admin/AdminSettings";
+import AdminCurrencies from "./pages/admin/AdminCurrencies";
 import { ToastProvider } from "./context/Toast";
 import { LoyaltyProvider } from "./context/Loyalty";
 import { PreferencesProvider } from "./context/Preferences";
+import { CurrencyProvider } from "./context/Currency";
 import { AddressesProvider } from "./context/Addresses";
 import { PaymentProvider } from "./context/Payment";
 import { ReviewsProvider } from "./context/Reviews";
@@ -127,6 +129,7 @@ function AppRoutes() {
           <Route path="homepage" element={<AdminHomepage />} />
           <Route path="banners" element={<AdminBanners />} />
           <Route path="seo" element={<AdminSeo />} />
+          <Route path="currencies" element={<AdminCurrencies />} />
           <Route path="settings" element={<AdminSettings />} />
         </Route>
       </Routes>
@@ -172,6 +175,7 @@ export default function App() {
         <LoyaltyProvider>
           <OrdersProvider>
             <PreferencesProvider>
+              <CurrencyProvider>
               <AddressesProvider>
                 <PaymentProvider>
                   <ReviewsProvider>
@@ -189,6 +193,7 @@ export default function App() {
                   </ReviewsProvider>
                 </PaymentProvider>
               </AddressesProvider>
+              </CurrencyProvider>
             </PreferencesProvider>
           </OrdersProvider>
         </LoyaltyProvider>

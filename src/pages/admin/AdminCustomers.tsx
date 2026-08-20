@@ -6,10 +6,11 @@ import { apiGet, apiSend } from "../../lib/api";
 import { useToast } from "../../context/Toast";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
-const money = (n: number) => `€${n.toFixed(2)}`;
+import { useBaseMoney } from "../../context/Currency";
 const fmt = (s: string) => { try { return new Date(s).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }); } catch { return s; } };
 
 export default function AdminCustomers() {
+  const money = useBaseMoney();
   const { show } = useToast();
   const [list, setList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

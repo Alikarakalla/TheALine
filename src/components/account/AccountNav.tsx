@@ -60,7 +60,7 @@ export default function AccountNav() {
                 fontFamily: "'Inter Tight', sans-serif",
                 fontSize: 14,
                 fontWeight: isActive ? 600 : 450,
-                color: isActive ? "#111" : TEXT_COLOR,
+                color: isActive ? "#ffffff" : TEXT_COLOR,
                 whiteSpace: "nowrap",
               }}
             >
@@ -71,7 +71,7 @@ export default function AccountNav() {
                   style={{
                     position: "absolute",
                     inset: 0,
-                    background: GLOW_COLOR,
+                    background: "#141414",
                     borderRadius: 999,
                     zIndex: 0,
                   }}

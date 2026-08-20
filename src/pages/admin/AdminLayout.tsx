@@ -19,6 +19,7 @@ const NAV: { to: string; label: string; icon: string; end?: boolean }[] = [
   { to: "/admin/homepage", label: "Homepage", icon: "▤" },
   { to: "/admin/banners", label: "Banners", icon: "▭" },
   { to: "/admin/seo", label: "SEO", icon: "⌕" },
+  { to: "/admin/currencies", label: "Currencies", icon: "¤" },
   { to: "/admin/settings", label: "Settings & Theme", icon: "⚙" },
 ];
 

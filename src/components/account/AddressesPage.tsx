@@ -39,7 +39,7 @@ export default function AddressesPage() {
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <h1 style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.5px", color: TEXT_COLOR }}>Addresses</h1>
-        <button onClick={() => setModal({})} style={{ background: GLOW_COLOR, border: "none", borderRadius: 999, padding: "11px 20px", cursor: "pointer", fontFamily: "'Inter Tight', sans-serif", fontSize: 14, fontWeight: 600, color: "#111" }}>
+        <button onClick={() => setModal({})} style={{ background: "#141414", border: "none", borderRadius: 999, padding: "11px 20px", cursor: "pointer", fontFamily: "'Inter Tight', sans-serif", fontSize: 14, fontWeight: 600, color: "#ffffff" }}>
           + Add new
         </button>
       </div>
@@ -56,10 +56,10 @@ export default function AddressesPage() {
                 key={a.id} layout
                 initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.35, ease: EASE }}
-                style={{ background: "#fff", border: `1px solid ${a.isDefault ? GLOW_COLOR : "rgba(84,84,84,0.12)"}`, borderRadius: 14, padding: 20, position: "relative" }}
+                style={{ background: "#fff", border: `1px solid ${a.isDefault ? "#141414" : "rgba(84,84,84,0.12)"}`, borderRadius: 14, padding: 20, position: "relative" }}
               >
                 {a.isDefault && (
-                  <span style={{ position: "absolute", top: 16, right: 16, fontSize: 10.5, fontWeight: 600, letterSpacing: "1px", color: "#111", background: GLOW_COLOR, borderRadius: 999, padding: "3px 9px" }}>DEFAULT</span>
+                  <span style={{ position: "absolute", top: 16, right: 16, fontSize: 10.5, fontWeight: 600, letterSpacing: "1px", color: "#ffffff", background: "#141414", borderRadius: 999, padding: "3px 9px" }}>DEFAULT</span>
                 )}
                 <div style={{ fontSize: 13, fontWeight: 600, letterSpacing: "0.5px", color: "rgba(84,84,84,0.6)", textTransform: "uppercase", marginBottom: 8 }}>{a.label}</div>
                 <div style={{ fontSize: 14.5, fontWeight: 500, color: TEXT_COLOR }}>{a.fullName}</div>

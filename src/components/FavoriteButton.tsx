@@ -32,7 +32,7 @@ export default function FavoriteButton({
           height: size,
           borderRadius: 999,
           background: "#fff",
-          border: `1px solid ${active ? GLOW_COLOR : "rgba(84,84,84,0.25)"}`,
+          border: `1px solid ${active ? "#141414" : "rgba(84,84,84,0.25)"}`,
         };
 
   return (
@@ -65,7 +65,7 @@ export default function FavoriteButton({
         <path
           d="M12 21s-7.5-4.9-10-9.2C0 8 2 4.5 5.5 4.5 8 4.5 9.6 6 12 8c2.4-2 4-3.5 6.5-3.5C22 4.5 24 8 22 11.8 19.5 16.1 12 21 12 21z"
           strokeWidth={active ? 1 : 1.6}
-          style={{ fill: active ? GLOW_COLOR : "none", stroke: active ? "#111" : TEXT_COLOR }}
+          style={{ fill: active ? "#141414" : "none", stroke: active ? "#141414" : TEXT_COLOR }}
         />
       </motion.svg>
     </motion.button>

@@ -6,6 +6,8 @@ import { productImageFile, getGallery } from "../lib/products";
 import { useIsMobile } from "../lib/useResponsive";
 import { useProductNav } from "../context/ProductNav";
 import { useCatalog } from "../context/Catalog";
+import { useDeliveryConfig } from "../context/SiteSettings";
+import { useMoney } from "../context/Currency";
 import { useCart, type AddVariant } from "../context/Cart";
 import FavoriteButton from "./FavoriteButton";
 import Header from "./Header";
@@ -404,6 +406,8 @@ export default function ProductPage() {
   const { id } = useParams();
   const { close, consumeOrigin } = useProductNav();
   const { products, getById, loading: catalogLoading } = useCatalog();
+  const { freeOver } = useDeliveryConfig();
+  const fmt = useMoney();
   const product = getById(id);
 
   // Stored click origin for the shared-element morph (null on a direct visit).
@@ -486,14 +490,14 @@ export default function ProductPage() {
   useEffect(() => {
     if (!product) return;
     setPageMeta({
-      title: `${product.name} — €${product.price.toFixed(2)} | The A Line`,
+      title: `${product.name} — ${fmt(product.price)} | The A Line`,
       description: product.description,
       image: product.images?.[0] ?? `${ASSET}/${productImageFile(product)}`,
       url: window.location.href,
       type: "product",
     });
     return () => resetPageMeta();
-  }, [product]);
+  }, [product, fmt]);
 
   // Keyboard UX: Esc closes (lightbox first, then page), ←/→ moves the gallery.
   useEffect(() => {
@@ -837,10 +841,10 @@ export default function ProductPage() {
             {...block(2)}
             style={{ fontSize: 22, fontWeight: 500, color: TEXT_COLOR, marginBottom: 22, display: "flex", alignItems: "baseline", gap: 10 }}
           >
-            <span>€{unitPrice.toFixed(2)}</span>
+            <span style={{ fontVariantNumeric: "tabular-nums" }}>{fmt(unitPrice)}</span>
             {unitCompareAt != null && unitCompareAt > unitPrice && (
-              <span style={{ fontSize: 16, color: "rgba(84,84,84,0.5)", textDecoration: "line-through" }}>
-                €{unitCompareAt.toFixed(2)}
+              <span style={{ fontSize: 16, color: "rgba(84,84,84,0.5)", textDecoration: "line-through", fontVariantNumeric: "tabular-nums" }}>
+                {fmt(unitCompareAt)}
               </span>
             )}
           </motion.div>
@@ -883,7 +887,7 @@ export default function ProductPage() {
                             style={{
                               width: 30, height: 30, borderRadius: "50%", background: o.hex, cursor: "pointer",
                               border: isSel ? "2px solid #111" : "2px solid rgba(84,84,84,0.2)",
-                              outline: isSel ? `2px solid ${GLOW_COLOR}` : "none", outlineOffset: 2,
+                              outline: "none",
                               opacity: avail ? 1 : 0.35,
                               transition: "outline 0.2s ease, border 0.2s ease, opacity 0.2s ease",
                             }}
@@ -894,8 +898,8 @@ export default function ProductPage() {
                             onClick={() => setSel((s) => ({ ...s, [a.id]: o.id }))}
                             style={{
                               height: 34, minWidth: 42, padding: "0 14px", borderRadius: 999,
-                              background: isSel ? GLOW_COLOR : "transparent", cursor: "pointer",
-                              fontFamily: "'Inter Tight', sans-serif", fontSize: 13, fontWeight: isSel ? 600 : 400, color: "#111",
+                              background: isSel ? "#141414" : "transparent", cursor: "pointer",
+                              fontFamily: "'Inter Tight', sans-serif", fontSize: 13, fontWeight: isSel ? 600 : 400, color: isSel ? "#ffffff" : "#111",
                               border: isSel ? "2px solid #111" : "2px solid rgba(84,84,84,0.2)",
                               opacity: avail ? 1 : 0.4, textDecoration: avail ? "none" : "line-through",
                               transition: "background 0.2s ease, border 0.2s ease, opacity 0.2s ease",
@@ -931,7 +935,7 @@ export default function ProductPage() {
                       style={{
                         width: 30, height: 30, borderRadius: "50%", background: c.hex, cursor: "pointer",
                         border: isSel ? "2px solid #111" : "2px solid rgba(84,84,84,0.2)",
-                        outline: isSel ? `2px solid ${GLOW_COLOR}` : "none", outlineOffset: 2,
+                        outline: "none",
                         transition: "outline 0.2s ease, border 0.2s ease",
                       }}
                     />
@@ -941,8 +945,8 @@ export default function ProductPage() {
                       onClick={() => setColor(i)}
                       style={{
                         height: 30, padding: "0 14px", borderRadius: 999,
-                        background: isSel ? GLOW_COLOR : "transparent", cursor: "pointer",
-                        fontFamily: "'Inter Tight', sans-serif", fontSize: 13, fontWeight: isSel ? 600 : 400, color: "#111",
+                        background: isSel ? "#141414" : "transparent", cursor: "pointer",
+                        fontFamily: "'Inter Tight', sans-serif", fontSize: 13, fontWeight: isSel ? 600 : 400, color: isSel ? "#ffffff" : "#111",
                         border: isSel ? "2px solid #111" : "2px solid rgba(84,84,84,0.2)",
                         transition: "background 0.2s ease, border 0.2s ease",
                       }}
@@ -998,7 +1002,7 @@ export default function ProductPage() {
             <Accordion title="Materials & care" body={product.materials} />
             <Accordion
               title="Shipping & returns"
-              body="Free carbon-neutral shipping over €100. 30-day returns, no questions asked."
+              body={`Cash on delivery across Lebanon — free delivery over ${fmt(freeOver, true)}. 30-day returns, no questions asked.`}
             />
           </motion.div>
 
@@ -1069,6 +1073,7 @@ function AddToBag({
   const x = useSpring(0, { stiffness: 200, damping: 14 });
   const y = useSpring(0, { stiffness: 200, damping: 14 });
   const { add } = useCart();
+  const fmt = useMoney();
   const [added, setAdded] = useState(false);
   const price = unitPrice ?? product.price;
   return (
@@ -1095,8 +1100,8 @@ function AddToBag({
         x,
         y,
         flex: 1,
-        background: disabled ? "rgba(84,84,84,0.18)" : GLOW_COLOR,
-        color: disabled ? "rgba(84,84,84,0.7)" : "#111111",
+        background: disabled ? "rgba(84,84,84,0.18)" : "#141414",
+        color: disabled ? "rgba(84,84,84,0.7)" : "#ffffff",
         border: "none",
         borderRadius: 999,
         padding: "0 28px",
@@ -1109,7 +1114,7 @@ function AddToBag({
         whiteSpace: "nowrap",
       }}
     >
-      {disabled ? "Unavailable" : added ? "Added to bag ✓" : `Add to bag — €${(price * qty).toFixed(2)}`}
+      {disabled ? "Unavailable" : added ? "Added to bag ✓" : `Add to bag — ${fmt(price * qty)}`}
     </motion.button>
   );
 }

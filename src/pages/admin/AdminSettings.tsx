@@ -4,6 +4,7 @@ import { INK } from "./ui";
 import { apiGet, apiSend } from "../../lib/api";
 import { useToast } from "../../context/Toast";
 import { applyTheme, useSiteSettings } from "../../context/SiteSettings";
+import { useBaseCurrency } from "../../context/Currency";
 
 const COLOR_FIELDS: { key: string; label: string }[] = [
   { key: "primary_color", label: "Primary (accent / glow)" },
@@ -15,10 +16,14 @@ const COLOR_FIELDS: { key: string; label: string }[] = [
 ];
 
 export default function AdminSettings() {
+  const base = useBaseCurrency();
   const { show } = useToast();
   const { reload } = useSiteSettings();
   const [theme, setTheme] = useState<Record<string, string>>({});
   const [site, setSite] = useState<Record<string, string>>({});
+  const [orderPrefix, setOrderPrefix] = useState("LB-");
+  const [nextOrderNo, setNextOrderNo] = useState("1");
+  const [notifyEmail, setNotifyEmail] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -29,6 +34,11 @@ export default function AdminSettings() {
         setSite(
           Object.fromEntries(Object.entries(s.site || {}).map(([k, v]) => [k, String(v)]))
         );
+        const o = s.orders || {};
+        setOrderPrefix(String(o.number_prefix ?? "LB-"));
+        const last = parseInt(String(o.last_number ?? "0"), 10);
+        setNextOrderNo(String((Number.isFinite(last) ? last : 0) + 1));
+        setNotifyEmail(String(o.notify_email ?? ""));
       })
       .catch((e) => show({ title: "Couldn't load settings", description: e.message, tone: "error" }))
       .finally(() => setLoading(false));
@@ -42,7 +52,17 @@ export default function AdminSettings() {
   const save = async () => {
     setSaving(true);
     try {
-      await apiSend("PUT", "admin/settings", { theme, site });
+      const next = Math.max(1, parseInt(nextOrderNo || "1", 10) || 1);
+      await apiSend("PUT", "admin/settings", {
+        theme,
+        site,
+        orders: {
+          number_prefix: orderPrefix.trim() || "LB-",
+          // The backend counter stores the LAST assigned number.
+          last_number: String(next - 1),
+          notify_email: notifyEmail.trim(),
+        },
+      });
       applyTheme(theme);
       reload();
       show({ title: "Settings saved", description: "Theme applied across the store", tone: "reward" });
@@ -99,9 +119,37 @@ export default function AdminSettings() {
         <div style={{ fontSize: 16, fontWeight: 600, color: TEXT_COLOR, marginBottom: 18 }}>Store</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
           <div><label style={labelS}>Site name</label><input value={site.site_name || ""} onChange={(e) => setSite((s) => ({ ...s, site_name: e.target.value }))} style={inputS} /></div>
-          <div><label style={labelS}>Free shipping threshold (€)</label><input value={site.free_ship_threshold || ""} onChange={(e) => setSite((s) => ({ ...s, free_ship_threshold: e.target.value }))} style={inputS} /></div>
+          <div><label style={labelS}>Delivery fee ({base.symbol})</label><input inputMode="decimal" value={site.delivery_fee || ""} onChange={(e) => setSite((s) => ({ ...s, delivery_fee: e.target.value.replace(/[^\d.]/g, "") }))} style={inputS} placeholder="5.90" /></div>
+          <div><label style={labelS}>Free delivery over ({base.symbol})</label><input inputMode="decimal" value={site.free_ship_threshold || ""} onChange={(e) => setSite((s) => ({ ...s, free_ship_threshold: e.target.value.replace(/[^\d.]/g, "") }))} style={inputS} placeholder="100" /></div>
           <div style={{ gridColumn: "1 / -1" }}><label style={labelS}>Tagline</label><input value={site.tagline || ""} onChange={(e) => setSite((s) => ({ ...s, tagline: e.target.value }))} style={inputS} /></div>
           <div style={{ gridColumn: "1 / -1" }}><label style={labelS}>Announcement bar</label><input value={site.announcement || ""} onChange={(e) => setSite((s) => ({ ...s, announcement: e.target.value }))} style={inputS} /></div>
+        </div>
+      </div>
+
+      <div style={card}>
+        <div style={{ fontSize: 16, fontWeight: 600, color: TEXT_COLOR, marginBottom: 6 }}>Orders</div>
+        <div style={{ fontSize: 12.5, color: "rgba(84,84,84,0.6)", marginBottom: 18 }}>
+          Numbering is sequential (prefix + 4-digit counter), and every new order emails the store.
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div>
+            <label style={labelS}>Number prefix</label>
+            <input value={orderPrefix} onChange={(e) => setOrderPrefix(e.target.value)} placeholder="ORDER-" style={inputS} />
+          </div>
+          <div>
+            <label style={labelS}>Next order number</label>
+            <input inputMode="numeric" value={nextOrderNo} onChange={(e) => setNextOrderNo(e.target.value.replace(/\D/g, ""))} placeholder="1" style={inputS} />
+          </div>
+          <div style={{ gridColumn: "1 / -1" }}>
+            <label style={labelS}>New-order notification email</label>
+            <input type="email" value={notifyEmail} onChange={(e) => setNotifyEmail(e.target.value)} placeholder="info@thealine.shop (store mailbox when empty)" style={inputS} />
+          </div>
+        </div>
+        <div style={{ marginTop: 12, fontSize: 12.5, color: "rgba(84,84,84,0.6)" }}>
+          Next order will be{" "}
+          <span style={{ fontWeight: 600, color: TEXT_COLOR, fontVariantNumeric: "tabular-nums" }}>
+            {(orderPrefix.trim() || "LB-") + String(Math.max(1, parseInt(nextOrderNo || "1", 10) || 1)).padStart(4, "0")}
+          </span>
         </div>
       </div>
     </div>

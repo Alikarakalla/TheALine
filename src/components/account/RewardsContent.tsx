@@ -4,6 +4,7 @@ import { useIsMobile } from "../../lib/useResponsive";
 import { useLoyalty } from "../../context/Loyalty";
 import { useToast } from "../../context/Toast";
 import { TIERS, REWARD_CATALOG, WAYS_TO_EARN, euroValueOfPoints } from "../../lib/loyalty";
+import { useBaseMoney } from "../../context/Currency";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
@@ -27,6 +28,14 @@ export default function RewardsContent() {
   const isMobile = useIsMobile();
   const { show } = useToast();
   const { points, tier, ledger, referralCode, redeem, signedIn } = useLoyalty();
+  const money = useBaseMoney();
+  // Loyalty copy states base-currency amounts as "€N" — re-render them in
+  // whatever base currency is configured in Admin → Currencies.
+  const loc = (s: string) =>
+    s.replace(/€(\d+(?:\.\d+)?)/g, (_, n) => {
+      const v = parseFloat(n);
+      return money(v, Number.isInteger(v));
+    });
 
   const referralLink = `${window.location.origin}/register?ref=${referralCode}`;
   const copyReferral = () => {
@@ -35,7 +44,7 @@ export default function RewardsContent() {
     } catch {
       /* ignore */
     }
-    show({ title: "Referral link copied", description: "Give €3, get €1.50", tone: "reward" });
+    show({ title: "Referral link copied", description: `Give ${money(3, true)}, get ${money(1.5)}`, tone: "reward" });
   };
   const onRedeem = (rewardId: string, label: string) => {
     const code = redeem(rewardId);
@@ -68,17 +77,17 @@ export default function RewardsContent() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                   <span style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", fontSize: 24 }}>{t.name}</span>
                   {isCurrent && (
-                    <span style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: "1px", color: "#111", background: GLOW_COLOR, borderRadius: 999, padding: "3px 9px" }}>YOU</span>
+                    <span style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: "1px", color: "#ffffff", background: "#141414", borderRadius: 999, padding: "3px 9px" }}>YOU</span>
                   )}
                 </div>
                 <div style={{ fontSize: 12.5, color: isCurrent ? "rgba(255,255,255,0.55)" : "rgba(84,84,84,0.55)", marginTop: 4, marginBottom: 16 }}>
-                  {t.min === 0 ? "From €0 spent" : `From €${t.min} lifetime`}
+                  {t.min === 0 ? `From ${money(0, true)} spent` : `From ${money(t.min, true)} lifetime`}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
                   {t.perks.map((p) => (
                     <div key={p} style={{ display: "flex", gap: 9, fontSize: 13, lineHeight: 1.4 }}>
-                      <span style={{ color: GLOW_COLOR }}>✓</span>
-                      <span style={{ color: isCurrent ? "rgba(255,255,255,0.8)" : "rgba(84,84,84,0.8)" }}>{p}</span>
+                      <span style={{ color: "#1f8a5d" }}>✓</span>
+                      <span style={{ color: isCurrent ? "rgba(255,255,255,0.8)" : "rgba(84,84,84,0.8)" }}>{loc(p)}</span>
                     </div>
                   ))}
                 </div>
@@ -93,7 +102,7 @@ export default function RewardsContent() {
           {WAYS_TO_EARN.map((w) => (
             <div key={w.label} style={{ background: "#fff", border: "1px solid rgba(84,84,84,0.1)", borderRadius: 14, padding: 20 }}>
               <div style={{ fontSize: 22, marginBottom: 10 }}>{w.icon}</div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: TEXT_COLOR }}>{w.label}</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: TEXT_COLOR }}>{loc(w.label)}</div>
               <div style={{ fontSize: 13, color: "#7e9400", marginTop: 2, fontWeight: 600 }}>{w.points}</div>
             </div>
           ))}
@@ -108,16 +117,16 @@ export default function RewardsContent() {
             return (
               <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 16, background: "#fff", border: "1px solid rgba(84,84,84,0.1)", borderRadius: 14, padding: 18 }}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: TEXT_COLOR }}>{r.label}</div>
-                  <div style={{ fontSize: 12.5, color: "rgba(84,84,84,0.6)", marginTop: 2 }}>{r.description}</div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: TEXT_COLOR }}>{loc(r.label)}</div>
+                  <div style={{ fontSize: 12.5, color: "rgba(84,84,84,0.6)", marginTop: 2 }}>{loc(r.description)}</div>
                   <div style={{ fontSize: 12.5, color: TEXT_COLOR, marginTop: 6, fontWeight: 600 }}>{r.cost.toLocaleString()} pts</div>
                 </div>
                 <button
-                  onClick={() => can && onRedeem(r.id, r.label)}
+                  onClick={() => can && onRedeem(r.id, loc(r.label))}
                   disabled={!can}
                   style={{
-                    background: can ? GLOW_COLOR : "rgba(84,84,84,0.1)",
-                    color: can ? "#111" : "rgba(84,84,84,0.5)",
+                    background: can ? "#141414" : "rgba(84,84,84,0.1)",
+                    color: can ? "#ffffff" : "rgba(84,84,84,0.5)",
                     border: "none", borderRadius: 999, padding: "11px 18px",
                     cursor: can ? "pointer" : "not-allowed",
                     fontFamily: "'Inter Tight', sans-serif", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap",
@@ -131,8 +140,8 @@ export default function RewardsContent() {
         </div>
         {signedIn && points > 0 && (
           <div style={{ fontSize: 12.5, color: "rgba(84,84,84,0.6)", marginTop: 14 }}>
-            Or apply points at checkout — 100 points = €1 off (up to half your order). You have{" "}
-            <strong>€{euroValueOfPoints(points).toFixed(2)}</strong> to spend.
+            Or apply points at checkout — 100 points = {money(1, true)} off (up to half your order). You have{" "}
+            <strong>{money(euroValueOfPoints(points))}</strong> to spend.
           </div>
         )}
       </Section>
@@ -141,13 +150,13 @@ export default function RewardsContent() {
         <Section title="Refer a friend">
           <div style={{ background: "#161616", color: "#fff", borderRadius: 16, padding: 26, display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 20 }}>
             <div>
-              <div style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", fontSize: 24, marginBottom: 6 }}>Give €3, get €1.50</div>
+              <div style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", fontSize: 24, marginBottom: 6 }}>Give {money(3, true)}, get {money(1.5)}</div>
               <div style={{ fontSize: 13.5, color: "rgba(255,255,255,0.6)", maxWidth: 360 }}>
                 Your friend gets 150 points to start; you get 300 when they place their first order.
               </div>
-              <div style={{ marginTop: 14, fontSize: 13, color: GLOW_COLOR, fontFamily: "monospace" }}>{referralCode}</div>
+              <div style={{ marginTop: 14, fontSize: 13, color: TEXT_COLOR, fontWeight: 600, fontFamily: "monospace" }}>{referralCode}</div>
             </div>
-            <button onClick={copyReferral} style={{ background: GLOW_COLOR, color: "#111", border: "none", borderRadius: 999, padding: "13px 24px", cursor: "pointer", fontFamily: "'Inter Tight', sans-serif", fontSize: 14, fontWeight: 600 }}>
+            <button onClick={copyReferral} style={{ background: "#141414", color: "#ffffff", border: "none", borderRadius: 999, padding: "13px 24px", cursor: "pointer", fontFamily: "'Inter Tight', sans-serif", fontSize: 14, fontWeight: 600 }}>
               Copy invite link
             </button>
           </div>
