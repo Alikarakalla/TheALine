@@ -58,19 +58,52 @@ class DashboardController
         $trendDays = $days < 7 ? 7 : $days;
         $trendStart = date('Y-m-d 00:00:00', strtotime('-' . ($trendDays - 1) . ' days'));
         $rows = Database::all(
-            "SELECT DATE(created_at) d, COALESCE(SUM(total),0) rev
+            "SELECT DATE(created_at) d, COALESCE(SUM(total),0) rev, COUNT(*) cnt
              FROM orders WHERE created_at >= ? AND $valid GROUP BY DATE(created_at)",
             [$trendStart]
         );
         $byDay = [];
         foreach ($rows as $r) {
-            $byDay[$r['d']] = (float) $r['rev'];
+            $byDay[$r['d']] = ['rev' => (float) $r['rev'], 'cnt' => (int) $r['cnt']];
         }
         $trend = [];
         for ($i = $trendDays - 1; $i >= 0; $i--) {
             $d = date('Y-m-d', strtotime("-$i days"));
-            $trend[] = ['date' => $d, 'revenue' => $byDay[$d] ?? 0];
+            $trend[] = [
+                'date' => $d,
+                'revenue' => $byDay[$d]['rev'] ?? 0,
+                'orders' => $byDay[$d]['cnt'] ?? 0,
+            ];
         }
+
+        // Order pipeline mix over the same window (grouped for the mix bar).
+        $mixRows = Database::all(
+            "SELECT status, COUNT(*) c FROM orders WHERE created_at >= ? GROUP BY status",
+            [$trendStart]
+        );
+        $mix = ['fulfilled' => 0, 'pending' => 0, 'inProgress' => 0, 'cancelled' => 0];
+        foreach ($mixRows as $r) {
+            $s = $r['status'];
+            $c = (int) $r['c'];
+            if ($s === 'delivered') $mix['fulfilled'] += $c;
+            elseif ($s === 'pending') $mix['pending'] += $c;
+            elseif (in_array($s, ['cancelled', 'refunded'], true)) $mix['cancelled'] += $c;
+            else $mix['inProgress'] += $c; // paid / processing / shipped
+        }
+
+        // Best sellers in the window, by revenue.
+        $topProducts = array_map(fn($r) => [
+            'name' => $r['name'],
+            'qty' => (int) $r['qty'],
+            'revenue' => (float) $r['rev'],
+        ], Database::all(
+            "SELECT oi.name, SUM(oi.qty) qty, COALESCE(SUM(oi.line_total),0) rev
+             FROM order_items oi
+             JOIN orders o ON o.id = oi.order_id
+             WHERE o.created_at >= ? AND o.status NOT IN ('cancelled','refunded')
+             GROUP BY oi.name ORDER BY rev DESC LIMIT 5",
+            [$trendStart]
+        ));
 
         $recent = array_map(fn($o) => [
             'number' => $o['number'],
@@ -94,6 +127,8 @@ class DashboardController
                 'avgOrder'     => ['value' => round($aovCur, 2),     'delta' => $delta($aovCur, $aovPrev)],
             ],
             'trend' => $trend,
+            'statusMix' => $mix,
+            'topProducts' => $topProducts,
             'recentOrders' => $recent,
             'attention' => [
                 'pendingOrders' => $count("SELECT COUNT(*) c FROM orders WHERE status NOT IN ('delivered','cancelled','refunded')"),

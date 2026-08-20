@@ -130,7 +130,21 @@ function NavLink({
       }}
     >
       {label}
-      {caret && <span style={{ fontSize: 9, opacity: 0.7 }}>▾</span>}
+      {caret && (
+        <svg
+          width={10}
+          height={10}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{ opacity: 0.7 }}
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      )}
       <motion.span
         style={{
           position: "absolute",
@@ -765,22 +779,37 @@ export default function Header() {
   });
 
   // Contrast adaptation: a 1px detection line just under the bar reports the
-  // tone of whichever section is crossing it.
+  // tone of whichever section is crossing it. Several sections can cross it at
+  // once (an overlay page keeps its base page mounted underneath), so the LAST
+  // [data-tone] element in document order wins — that's the topmost overlay.
   useEffect(() => {
     const line = 28;
     let io: IntersectionObserver;
+    const hits = new Set<Element>();
+    const apply = () => {
+      const els = Array.from(document.querySelectorAll("[data-tone]"));
+      for (let i = els.length - 1; i >= 0; i--) {
+        if (hits.has(els[i])) {
+          setTone((els[i].getAttribute("data-tone") as Tone) || "light");
+          return;
+        }
+      }
+    };
     const build = () => {
       io?.disconnect();
+      hits.clear();
       io = new IntersectionObserver(
         (entries) => {
           entries.forEach((e) => {
-            if (e.isIntersecting) {
-              setTone((e.target.getAttribute("data-tone") as Tone) || "light");
-            }
+            if (e.isIntersecting) hits.add(e.target);
+            else hits.delete(e.target);
           });
+          apply();
         },
         {
-          rootMargin: `-${line}px 0px -${window.innerHeight - line - 1}px 0px`,
+          // Clamp: in a zero/tiny-height viewport (hidden tab, prerender) the
+          // raw math goes negative and "--Npx" throws, unmounting the app.
+          rootMargin: `-${line}px 0px -${Math.max(0, window.innerHeight - line - 1)}px 0px`,
         }
       );
       document.querySelectorAll("[data-tone]").forEach((el) => io.observe(el));

@@ -1,96 +1,35 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Field, AuthButton } from "../AuthUI";
 import { TEXT_COLOR, GLOW_COLOR } from "../../lib/constants";
 import { useIsMobile } from "../../lib/useResponsive";
 import { useAddresses, type Address } from "../../context/Addresses";
+import { useAuth } from "../../context/Auth";
 import { useToast } from "../../context/Toast";
+import AddressDrawer, { type AddressDraft } from "./AddressDrawer";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
-const COUNTRIES = ["France", "Belgium", "Germany", "Spain", "Italy", "Netherlands", "United Kingdom"];
-
-type Draft = Omit<Address, "id" | "isDefault">;
-const blank: Draft = { label: "Home", fullName: "", line1: "", line2: "", city: "", postcode: "", country: "France", phone: "" };
-
-function AddressModal({
-  initial,
-  onClose,
-  onSave,
-}: {
-  initial?: Address;
-  onClose: () => void;
-  onSave: (d: Draft) => void;
-}) {
-  const isMobile = useIsMobile();
-  const [d, setD] = useState<Draft>(initial ? { ...initial } : { ...blank });
-  const [err, setErr] = useState<Record<string, string>>({});
-  const set = (k: keyof Draft, v: string) => setD((p) => ({ ...p, [k]: v }));
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const er: Record<string, string> = {};
-    if (!d.fullName.trim()) er.fullName = "Required";
-    if (!d.line1.trim()) er.line1 = "Required";
-    if (!d.city.trim()) er.city = "Required";
-    if (!d.postcode.trim()) er.postcode = "Required";
-    setErr(er);
-    if (Object.keys(er).length) return;
-    onSave(d);
-  };
-  return (
-    <motion.div
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      onClick={onClose}
-      style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(17,17,17,0.45)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 24 }}
-    >
-      <motion.div
-        initial={{ y: isMobile ? "100%" : 20, opacity: isMobile ? 1 : 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: isMobile ? "100%" : 20, opacity: isMobile ? 1 : 0 }}
-        transition={{ duration: 0.4, ease: EASE }}
-        onClick={(e) => e.stopPropagation()}
-        style={{ width: "100%", maxWidth: 460, background: "#ffffff", borderRadius: isMobile ? "18px 18px 0 0" : 18, padding: isMobile ? "26px 24px 36px" : 30, maxHeight: "90vh", overflowY: "auto", fontFamily: "'Inter Tight', sans-serif" }}
-      >
-        <div style={{ fontSize: 20, fontWeight: 600, color: TEXT_COLOR, marginBottom: 20 }}>
-          {initial ? "Edit address" : "Add address"}
-        </div>
-        <form onSubmit={submit} noValidate>
-          <Field label="Label" value={d.label} onChange={(v) => set("label", v)} placeholder="Home, Work…" />
-          <Field label="Full name" value={d.fullName} onChange={(v) => set("fullName", v)} error={err.fullName} />
-          <Field label="Address" value={d.line1} onChange={(v) => set("line1", v)} error={err.line1} placeholder="Street and number" />
-          <Field label="Apartment, suite (optional)" value={d.line2 || ""} onChange={(v) => set("line2", v)} />
-          <div style={{ display: "flex", gap: 12 }}>
-            <div style={{ flex: 1 }}><Field label="City" value={d.city} onChange={(v) => set("city", v)} error={err.city} /></div>
-            <div style={{ flex: 1 }}><Field label="Postcode" value={d.postcode} onChange={(v) => set("postcode", v)} error={err.postcode} /></div>
-          </div>
-          <div style={{ marginBottom: 18 }}>
-            <label style={{ display: "block", fontSize: 12.5, fontWeight: 500, color: "rgba(84,84,84,0.7)", marginBottom: 7 }}>Country</label>
-            <select value={d.country} onChange={(e) => set("country", e.target.value)} style={{ width: "100%", background: "#fff", border: "1.5px solid rgba(84,84,84,0.18)", borderRadius: 12, padding: "13px 16px", fontFamily: "'Inter Tight', sans-serif", fontSize: 15, color: TEXT_COLOR, outline: "none" }}>
-              {COUNTRIES.map((c) => <option key={c}>{c}</option>)}
-            </select>
-          </div>
-          <Field label="Phone (optional)" value={d.phone || ""} onChange={(v) => set("phone", v)} />
-          <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
-            <button type="button" onClick={onClose} style={{ flex: "0 0 auto", background: "none", border: "1px solid rgba(84,84,84,0.25)", borderRadius: 999, padding: "0 24px", cursor: "pointer", fontFamily: "'Inter Tight', sans-serif", fontSize: 14, color: TEXT_COLOR }}>
-              Cancel
-            </button>
-            <AuthButton type="submit">{initial ? "Save changes" : "Add address"}</AuthButton>
-          </div>
-        </form>
-      </motion.div>
-    </motion.div>
-  );
-}
 
 export default function AddressesPage() {
   const isMobile = useIsMobile();
   const { addresses, add, update, remove, setDefault } = useAddresses();
+  const { user } = useAuth();
   const { show } = useToast();
   const [modal, setModal] = useState<null | { editing?: Address }>(null);
 
-  const onSave = (d: Draft) => {
+  // Name, phone and country never appear in the form — they come from the
+  // account (Lebanon-only delivery).
+  const onSave = (d: AddressDraft) => {
+    const payload = {
+      ...d,
+      fullName: user?.name ?? "",
+      phone: user?.phone ?? "",
+      country: "Lebanon",
+    };
     if (modal?.editing) {
-      update(modal.editing.id, d);
+      update(modal.editing.id, payload);
       show({ title: "Address updated", tone: "success" });
     } else {
-      add(d);
+      add(payload);
       show({ title: "Address added", tone: "success" });
     }
     setModal(null);
@@ -141,7 +80,7 @@ export default function AddressesPage() {
       )}
 
       <AnimatePresence>
-        {modal && <AddressModal initial={modal.editing} onClose={() => setModal(null)} onSave={onSave} />}
+        {modal && <AddressDrawer initial={modal.editing} onClose={() => setModal(null)} onSave={onSave} />}
       </AnimatePresence>
     </div>
   );

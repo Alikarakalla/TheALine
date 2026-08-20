@@ -21,7 +21,13 @@ type Ctx = {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (name: string, email: string, password: string) => Promise<void>;
+  signUp: (
+    name: string,
+    email: string,
+    password: string,
+    phone?: string,
+    code?: string
+  ) => Promise<void>;
   signOut: () => void;
   updateProfile: (patch: Partial<User>) => Promise<void>;
   refresh: () => Promise<void>;
@@ -60,14 +66,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(res.customer);
   }, []);
 
-  const signUp = useCallback(async (name: string, email: string, password: string) => {
-    const res = await api<{ token: string; customer: User }>("auth/customer/register", {
-      method: "POST",
-      body: { name, email, password },
-    });
-    setCustomerToken(res.token);
-    setUser(res.customer);
-  }, []);
+  const signUp = useCallback(
+    async (name: string, email: string, password: string, phone?: string, code?: string) => {
+      const res = await api<{ token: string; customer: User }>("auth/customer/register", {
+        method: "POST",
+        body: {
+          name,
+          email,
+          password,
+          ...(phone ? { phone } : {}),
+          ...(code ? { code } : {}),
+        },
+      });
+      setCustomerToken(res.token);
+      setUser(res.customer);
+    },
+    []
+  );
 
   const signOut = useCallback(() => {
     setCustomerToken(null);

@@ -6,9 +6,11 @@ import {
   AuthHeading,
   Field,
   AuthButton,
+  SuccessBadge,
+  SwitchLine,
+  TrustLine,
   isEmail,
 } from "../components/AuthUI";
-import { TEXT_COLOR, GLOW_COLOR } from "../lib/constants";
 import { setPageMeta, resetPageMeta } from "../lib/meta";
 import { api } from "../lib/api";
 
@@ -51,101 +53,52 @@ export default function ForgotPassword() {
     }
   };
 
-  const backToLogin = (
-    <div
-      style={{
-        textAlign: "center",
-        marginTop: 26,
-        fontSize: 14,
-        color: "rgba(84,84,84,0.7)",
-      }}
-    >
-      Remembered it?{" "}
-      <button
-        onClick={() => navigate("/login")}
-        style={{
-          background: "none",
-          border: "none",
-          cursor: "pointer",
-          fontFamily: "'Inter Tight', sans-serif",
-          fontSize: 14,
-          fontWeight: 600,
-          color: TEXT_COLOR,
-          textDecoration: "underline",
-        }}
-      >
-        Back to sign in
-      </button>
-    </div>
-  );
-
   return (
-    <AuthLayout
-      quoteLead="It"
-      quoteAccent="happens"
-      caption="Reset your password in two steps and get back to the good stuff."
-    >
+    <AuthLayout>
       {sent ? (
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <div
-            style={{
-              width: 52,
-              height: 52,
-              borderRadius: "50%",
-              background: GLOW_COLOR,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 24,
-              marginBottom: 22,
-            }}
-          >
-            ✓
-          </div>
+          <SuccessBadge />
           <AuthHeading
             lead="Check your"
             accent="inbox"
-            sub={`If an account exists for ${email}, you'll receive a reset link shortly.`}
+            sub={`If an account exists for ${email}, you'll receive a reset link shortly. The link expires in 30 minutes and works once.`}
           />
           <button
             onClick={() => setSent(false)}
+            className="auth-link"
             style={{
               background: "none",
               border: "none",
+              padding: 0,
               cursor: "pointer",
               fontFamily: "'Inter Tight', sans-serif",
               fontSize: 14,
-              color: TEXT_COLOR,
+              color: "rgba(58,58,58,0.72)",
               textDecoration: "underline",
+              textUnderlineOffset: 3,
             }}
           >
             Use a different email
           </button>
           {resetToken && (
-            <button
-              onClick={() => navigate(`/reset-password?token=${resetToken}`)}
-              style={{
-                marginTop: 18,
-                width: "100%",
-                background: GLOW_COLOR,
-                border: "none",
-                borderRadius: 999,
-                padding: "14px 20px",
-                cursor: "pointer",
-                fontFamily: "'Inter Tight', sans-serif",
-                fontSize: 15,
-                fontWeight: 600,
-                color: "#111",
-              }}
-            >
-              Continue to reset →
-            </button>
+            <div style={{ marginTop: 20 }}>
+              <AuthButton
+                type="button"
+                onClick={() => navigate(`/reset-password?token=${resetToken}`)}
+              >
+                Continue to reset
+              </AuthButton>
+            </div>
           )}
-          {backToLogin}
+          <SwitchLine
+            prompt="Remembered it?"
+            action="Back to sign in"
+            onClick={() => navigate("/login")}
+          />
         </motion.div>
       ) : (
         <>
@@ -158,6 +111,7 @@ export default function ForgotPassword() {
             <Field
               label="Email"
               type="email"
+              name="email"
               value={email}
               onChange={setEmail}
               error={error}
@@ -170,7 +124,12 @@ export default function ForgotPassword() {
               </AuthButton>
             </div>
           </form>
-          {backToLogin}
+          <SwitchLine
+            prompt="Remembered it?"
+            action="Back to sign in"
+            onClick={() => navigate("/login")}
+          />
+          <TrustLine>Reset links are single-use and expire after 30 minutes.</TrustLine>
         </>
       )}
     </AuthLayout>

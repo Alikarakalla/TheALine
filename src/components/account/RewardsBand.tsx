@@ -12,28 +12,77 @@ export default function RewardsBand({ cta = true }: { cta?: boolean }) {
   return (
     <div
       style={{
-        background: "#161616",
+        background: "#141414",
         color: "#fff",
         borderRadius: 18,
-        padding: 26,
+        padding: "26px 28px",
         fontFamily: "'Inter Tight', sans-serif",
         position: "relative",
         overflow: "hidden",
       }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 }}>
+      {/* soft gold sheen, top-right */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          top: -120,
+          right: -80,
+          width: 320,
+          height: 320,
+          borderRadius: "50%",
+          background:
+            "radial-gradient(circle, rgba(217,196,154,0.16) 0%, rgba(217,196,154,0) 70%)",
+          pointerEvents: "none",
+        }}
+      />
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          flexWrap: "wrap",
+          gap: 16,
+          position: "relative",
+        }}
+      >
         <div>
-          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "2.5px", color: "rgba(255,255,255,0.5)", marginBottom: 10 }}>
-            LOVEBAG CIRCLE
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: "2.5px",
+              color: "rgba(255,255,255,0.55)",
+              marginBottom: 12,
+            }}
+          >
+            THE A LINE CIRCLE
           </div>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-            <span style={{ fontSize: 40, fontWeight: 700, letterSpacing: "-1.5px", color: GLOW_COLOR, lineHeight: 1 }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 9 }}>
+            <span
+              style={{
+                fontSize: 42,
+                fontWeight: 700,
+                letterSpacing: "-1.5px",
+                color: GLOW_COLOR,
+                lineHeight: 1,
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
               {points.toLocaleString()}
             </span>
-            <span style={{ fontSize: 14, color: "rgba(255,255,255,0.6)" }}>Glow Points</span>
+            <span style={{ fontSize: 14, color: "rgba(255,255,255,0.65)" }}>Glow Points</span>
           </div>
-          <div style={{ marginTop: 6, fontSize: 13, color: "rgba(255,255,255,0.6)" }}>
-            <span style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", fontSize: 17, color: "#fff" }}>
+          <div style={{ marginTop: 8, fontSize: 13, color: "rgba(255,255,255,0.65)" }}>
+            <span
+              style={{
+                fontFamily: "'Instrument Serif', serif",
+                fontStyle: "italic",
+                fontSize: 17,
+                color: "#fff",
+              }}
+            >
               {tier.name}
             </span>{" "}
             member
@@ -47,7 +96,7 @@ export default function RewardsBand({ cta = true }: { cta?: boolean }) {
               color: "#111",
               border: "none",
               borderRadius: 999,
-              padding: "10px 18px",
+              padding: "11px 20px",
               cursor: "pointer",
               fontFamily: "'Inter Tight', sans-serif",
               fontSize: 13,
@@ -60,12 +109,36 @@ export default function RewardsBand({ cta = true }: { cta?: boolean }) {
       </div>
 
       {next && (
-        <div style={{ marginTop: 20 }}>
-          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginBottom: 8 }}>
-            €{spendToNext.toFixed(0)} more to{" "}
-            <span style={{ color: "#fff", fontWeight: 600 }}>{next.name}</span>
+        <div style={{ marginTop: 22, position: "relative" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+              gap: 12,
+              fontSize: 12.5,
+              color: "rgba(255,255,255,0.65)",
+              marginBottom: 9,
+            }}
+          >
+            <span>
+              <span style={{ color: "#fff", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
+                €{spendToNext.toFixed(0)}
+              </span>{" "}
+              more to <span style={{ color: "#fff", fontWeight: 600 }}>{next.name}</span>
+            </span>
+            <span style={{ fontVariantNumeric: "tabular-nums" }}>
+              {Math.round(progressToNext * 100)}%
+            </span>
           </div>
-          <div style={{ height: 6, borderRadius: 999, background: "rgba(255,255,255,0.15)", overflow: "hidden" }}>
+          <div
+            style={{
+              height: 4,
+              borderRadius: 999,
+              background: "rgba(255,255,255,0.14)",
+              overflow: "hidden",
+            }}
+          >
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${Math.round(progressToNext * 100)}%` }}

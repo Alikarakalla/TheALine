@@ -138,48 +138,6 @@ function Dots({
   );
 }
 
-function Thumb({
-  src,
-  active,
-  onSelect,
-  delay = 0,
-}: {
-  src: string;
-  active: boolean;
-  onSelect: () => void;
-  delay?: number;
-}) {
-  return (
-    <motion.button
-      onClick={onSelect}
-      initial={{ opacity: 0, x: -12 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.4, ease: EASE, delay }}
-      whileHover={{ scale: 1.06 }}
-      style={{
-        flex: "0 0 auto",
-        width: 52,
-        height: 64,
-        borderRadius: 4,
-        overflow: "hidden",
-        cursor: "pointer",
-        padding: 0,
-        background: "#fff",
-        border: active ? "2px solid #111" : "2px solid rgba(84,84,84,0.15)",
-        outline: active ? `2px solid ${GLOW_COLOR}` : "none",
-        outlineOffset: 1,
-        transition: "border 0.2s ease, outline 0.2s ease",
-      }}
-    >
-      <img
-        src={src}
-        alt=""
-        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-      />
-    </motion.button>
-  );
-}
-
 /* Full-width mobile image carousel: native scroll-snap, dots + zoom. */
 function MobileGallery({
   images,
@@ -445,7 +403,7 @@ export default function ProductPage() {
   const isMobile = useIsMobile();
   const { id } = useParams();
   const { close, consumeOrigin } = useProductNav();
-  const { products, getById } = useCatalog();
+  const { products, getById, loading: catalogLoading } = useCatalog();
   const product = getById(id);
 
   // Stored click origin for the shared-element morph (null on a direct visit).
@@ -553,17 +511,55 @@ export default function ProductPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [gallery, onClose, zoomOpen]);
 
-  if (!product) return <Navigate to="/" replace />;
+  if (!product) {
+    // On a hard refresh the catalog boots from the static seed and the real
+    // (admin-created) products arrive a beat later — hold, don't bounce home.
+    if (catalogLoading) {
+      return (
+        <div
+          data-tone="light"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 300,
+            background: "#ffffff",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontFamily: "'Inter Tight', sans-serif",
+            fontSize: 14,
+            color: "rgba(58,58,58,0.55)",
+          }}
+        >
+          Loading…
+        </div>
+      );
+    }
+    return <Navigate to="/" replace />;
+  }
 
   const hasOrigin = !!origin;
 
-  // Desktop hero image target box (the morph lands here).
+  // ---- Desktop image-panel geometry ------------------------------------
+  // PDP gallery: featured portrait box + a column of square thumbnails to
+  // its RIGHT, anchored right under the header. Gallery, a fixed gap, and
+  // the info text are centered together as ONE composition so no dead
+  // space opens up between them. The featured box is the morph target.
+  const GALLERY_BG = "rgb(231,231,231)";  // gray image boxes on the white page
+  const HEADER_CLEAR = 84;                // clear the fixed <Header />
+  const RAIL_W = gallery.length > 1 ? Math.min(200, Math.round(vp.w * 0.12)) : 0;
+  const RAIL_GAP = RAIL_W ? 8 : 0;
+  const INFO_GAP = 64;                    // gallery → info column gap
+  const INFO_W = 560;                     // info text width (maxWidth below)
   const target = (() => {
-    const w = Math.min(440, vp.w * 0.42);
-    const h = vp.h * 0.62;
-    const panelW = vp.w * 0.5;
-    return { width: w, height: h, left: (panelW - w) / 2, top: (vp.h - h) / 2 };
+    const h = Math.min(vp.h - HEADER_CLEAR - 36, 640);  // capped height
+    const w = Math.min(h * 0.82, vp.w * 0.34);          // portrait, width-capped
+    const groupW = w + RAIL_GAP + RAIL_W;
+    const left = Math.max(32, (vp.w - (groupW + INFO_GAP + INFO_W + 56)) / 2);
+    return { width: w, height: h, left, top: HEADER_CLEAR + 12 };
   })();
+  const railLeft = target.left + target.width + RAIL_GAP;
+  const infoStart = railLeft + RAIL_W; // spacer width; the gap is info padding
 
   const dx = origin ? origin.rect.left - target.left : 0;
   const dy = origin ? origin.rect.top - target.top : 0;
@@ -636,6 +632,7 @@ export default function ProductPage() {
 
   return (
     <motion.div
+      data-tone="light"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -665,9 +662,9 @@ export default function ProductPage() {
               position: "fixed",
               top: 0,
               left: 0,
-              width: "50%",
+              width: "58%",
               height: "100%",
-              background: product.panel,
+              background: "#ffffff",
               transformOrigin: "left",
               zIndex: 1,
             }}
@@ -681,10 +678,10 @@ export default function ProductPage() {
               width: target.width,
               height: target.height,
               transformOrigin: "top left",
-              borderRadius: 4,
+              borderRadius: 10,
               overflow: "hidden",
+              background: GALLERY_BG,
               zIndex: 10,
-              boxShadow: "0 30px 60px rgba(0,0,0,0.18)",
             }}
           >
             <AnimatePresence initial={false}>
@@ -701,57 +698,62 @@ export default function ProductPage() {
             </AnimatePresence>
             <ZoomButton onClick={() => setZoomOpen(true)} />
           </motion.div>
-          <div
-            style={{
-              position: "fixed",
-              left: 24,
-              top: "50%",
-              transform: "translateY(-50%)",
-              display: "flex",
-              flexDirection: "column",
-              gap: 10,
-              zIndex: 20,
-            }}
-          >
-            {gallery.map((src, i) => (
-              <Thumb
-                key={src}
-                src={src}
-                active={i === activeIndex}
-                delay={0.45 + i * 0.06}
-                onSelect={() => setActiveIndex(i)}
-              />
-            ))}
-          </div>
+          {/* vertical rail of square thumbnails, right of the featured image */}
+          {RAIL_W > 0 && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.4, ease: EASE, delay: 0.45 }}
+              className="pg-thumbrail"
+              style={{
+                position: "fixed",
+                left: railLeft,
+                top: target.top,
+                width: RAIL_W,
+                maxHeight: target.height,
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+                overflowY: "auto",
+                overflowX: "hidden",
+                zIndex: 20,
+                scrollbarWidth: "none",
+              }}
+            >
+              <style>{`.pg-thumbrail::-webkit-scrollbar{display:none}`}</style>
+              {gallery.map((src, i) => {
+                const active = i === activeIndex;
+                return (
+                  <button
+                    key={src}
+                    onClick={() => setActiveIndex(i)}
+                    aria-label={`View image ${i + 1}`}
+                    style={{
+                      flex: "0 0 auto",
+                      width: "100%",
+                      aspectRatio: "1 / 1",
+                      borderRadius: 8,
+                      overflow: "hidden",
+                      cursor: "pointer",
+                      padding: 0,
+                      background: GALLERY_BG,
+                      border: active ? "1.5px solid #111" : "1.5px solid transparent",
+                      opacity: active ? 1 : 0.75,
+                      transition: "border 0.2s ease, opacity 0.2s ease",
+                    }}
+                  >
+                    <img
+                      src={src}
+                      alt=""
+                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                    />
+                  </button>
+                );
+              })}
+            </motion.div>
+          )}
         </>
       )}
-
-      {/* Back pill */}
-      <button
-        onClick={onClose}
-        style={{
-          position: isMobile ? "absolute" : "fixed",
-          top: isMobile ? 64 : 84,
-          left: isMobile ? 16 : 32,
-          zIndex: 30,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          background: "rgba(255,255,255,0.7)",
-          backdropFilter: "blur(8px)",
-          WebkitBackdropFilter: "blur(8px)",
-          border: "1px solid rgba(84,84,84,0.15)",
-          borderRadius: 999,
-          padding: "9px 16px",
-          cursor: "pointer",
-          fontFamily: "'Inter Tight', sans-serif",
-          fontSize: 13,
-          fontWeight: 500,
-          color: TEXT_COLOR,
-        }}
-      >
-        <span style={{ fontSize: 16, lineHeight: 1 }}>←</span> Back
-      </button>
 
       {/* layout */}
       <div
@@ -772,18 +774,20 @@ export default function ProductPage() {
             onZoom={() => setZoomOpen(true)}
           />
         ) : (
-          <div style={{ flex: "0 0 50%", height: "auto", pointerEvents: "none" }} />
+          <div style={{ flex: `0 0 ${infoStart}px`, height: "auto", pointerEvents: "none" }} />
         )}
 
         {/* info column */}
         <div
           style={{
-            flex: isMobile ? "none" : "0 0 50%",
-            padding: isMobile ? "28px 24px 56px" : "0 64px",
+            flex: isMobile ? "none" : "1 1 auto",
+            // Desktop: top padding aligns the text with the gallery top just
+            // under the fixed <Header />; left padding IS the gallery→info gap.
+            padding: isMobile ? "28px 24px 56px" : `${HEADER_CLEAR + 12}px 56px 72px ${INFO_GAP}px`,
             display: "flex",
             flexDirection: "column",
-            justifyContent: "center",
-            maxWidth: isMobile ? "100%" : 560,
+            justifyContent: "flex-start",
+            maxWidth: isMobile ? "100%" : INFO_W + INFO_GAP + 56,
           }}
         >
           {/* eyebrow */}

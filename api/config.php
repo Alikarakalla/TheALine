@@ -20,6 +20,18 @@ return [
         'pass'    => Env::get('DB_PASS', ''),
         'charset' => 'utf8mb4',
     ],
+    // Sender for transactional mail (OTP codes). Set MAIL_FROM in production;
+    // empty = the SMTP user, else auto "no-reply@<host>".
+    'mail_from'     => Env::get('MAIL_FROM', ''),
+    // SMTP relay for transactional mail (preferred over PHP mail() when set).
+    // Hostinger: smtp.hostinger.com, port 465, secure "ssl", a real mailbox.
+    'smtp' => [
+        'host'   => Env::get('SMTP_HOST', ''),
+        'port'   => (int) Env::get('SMTP_PORT', '465'),
+        'user'   => Env::get('SMTP_USER', ''),
+        'pass'   => Env::get('SMTP_PASS', ''),
+        'secure' => Env::get('SMTP_SECURE', 'ssl'),
+    ],
     // HS256 secret for login tokens. MUST be overridden in production via JWT_SECRET.
     'jwt_secret'    => Env::get('JWT_SECRET', 'lovebag_dev_only_change_me_secret'),
     'jwt_ttl'       => (int) Env::get('JWT_TTL', (string) (60 * 60 * 24 * 7)),

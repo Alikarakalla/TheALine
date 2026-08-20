@@ -63,6 +63,7 @@ function registerRoutes(Router $router): void
     $router->delete('admin/collections/{id}', fn($p) => CollectionsController::destroy($p));
 
     // ---- Customer accounts (storefront) ----
+    $router->post('auth/customer/register/send-code', fn() => CustomerAuthController::registerSendCode());
     $router->post('auth/customer/register', fn() => CustomerAuthController::register());
     $router->post('auth/customer/login', fn() => CustomerAuthController::login());
     $router->get('auth/customer/me', fn() => CustomerAuthController::me());

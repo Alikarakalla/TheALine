@@ -20,6 +20,9 @@ export type Address = {
   country: string;
   phone?: string;
   isDefault: boolean;
+  /** Delivery pin (map-picked), when the customer set one. */
+  lat?: number | null;
+  lng?: number | null;
 };
 
 type Ctx = {
@@ -49,6 +52,8 @@ const fromApi = (a: any): Address => ({
   country: a.country ?? "",
   phone: a.phone ?? "",
   isDefault: !!a.isDefault,
+  lat: a.lat != null ? Number(a.lat) : null,
+  lng: a.lng != null ? Number(a.lng) : null,
 });
 
 export function AddressesProvider({ children }: { children: ReactNode }) {

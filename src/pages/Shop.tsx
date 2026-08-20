@@ -4,13 +4,21 @@ import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import Header from "../components/Header";
 import SerifGlow from "../components/SerifGlow";
 import ProductCard from "../components/ProductCard";
-import { TEXT_COLOR, GLOW_COLOR, PAGE_MAX, PAGE_PAD } from "../lib/constants";
+import {
+  TEXT_COLOR,
+  GLOW_COLOR,
+  TEXT_COLOR_HEX,
+  GLOW_COLOR_HEX,
+  PAGE_MAX,
+  PAGE_PAD,
+} from "../lib/constants";
 import { useIsMobile } from "../lib/useResponsive";
 import { useCatalog, type CategoryNode } from "../context/Catalog";
 import { indexBySlug, productInCategories } from "../lib/categoryTree";
 import { setPageMeta, resetPageMeta } from "../lib/meta";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
+const HAIRLINE = "1px solid rgba(58,58,58,0.12)";
 
 const SORTS = [
   { id: "featured", label: "Featured" },
@@ -28,99 +36,193 @@ const PRICE_BUCKETS = [
 const toggle = (arr: string[], v: string) =>
   arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
 
-/* ----------------------------------------------------------------- sort UI */
+/* ------------------------------------------------------------------ icons */
+/* Drawn 1.6-stroke glyphs — one consistent weight, no unicode stand-ins. */
 
-function SortDropdown({
-  value,
-  onChange,
+function Glyph({
+  children,
+  size = 13,
 }: {
-  value: string;
-  onChange: (v: string) => void;
+  children: React.ReactNode;
+  size?: number;
+}) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ flex: "0 0 auto", display: "block" }}
+    >
+      {children}
+    </svg>
+  );
+}
+const ChevronDown = <path d="m6 9 6 6 6-6" />;
+const ChevronRight = <path d="m9 6 6 6-6 6" />;
+const XGlyph = (
+  <>
+    <path d="M6 6l12 12" />
+    <path d="M18 6 6 18" />
+  </>
+);
+const CheckGlyph = <path d="M20 6.5 9.5 17 4 11.5" />;
+const SlidersGlyph = (
+  <>
+    <path d="M4 7h16" />
+    <circle cx="9.5" cy="7" r="2.4" />
+    <path d="M4 17h16" />
+    <circle cx="14.5" cy="17" r="2.4" />
+  </>
+);
+
+/* ---------------------------------------------------------------- popover */
+
+function FilterPopover({
+  label,
+  activeCount = 0,
+  align = "left",
+  children,
+}: {
+  label: string;
+  activeCount?: number;
+  align?: "left" | "right";
+  children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
-  const current = SORTS.find((s) => s.id === value)!;
+  const engaged = open || activeCount > 0;
   return (
     <div style={{ position: "relative" }}>
       <button
         onClick={() => setOpen((o) => !o)}
-        onBlur={() => setTimeout(() => setOpen(false), 120)}
+        aria-expanded={open}
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 10,
+          gap: 8,
           background: "#fff",
-          border: "1px solid rgba(84,84,84,0.2)",
+          border: `1px solid ${engaged ? "rgba(58,58,58,0.55)" : "rgba(58,58,58,0.2)"}`,
           borderRadius: 999,
-          padding: "10px 18px",
+          padding: "9px 16px",
           cursor: "pointer",
           fontFamily: "'Inter Tight', sans-serif",
           fontSize: 13,
           fontWeight: 500,
           color: TEXT_COLOR,
           whiteSpace: "nowrap",
+          transition: "border 0.2s ease",
         }}
       >
-        <span style={{ opacity: 0.55 }}>Sort</span> {current.label}
-        <motion.span animate={{ rotate: open ? 180 : 0 }} style={{ fontSize: 10 }}>
-          ▾
+        {label}
+        {activeCount > 0 && (
+          <span
+            style={{
+              background: GLOW_COLOR,
+              color: "#111",
+              borderRadius: 999,
+              padding: "1px 7px",
+              fontSize: 11,
+              fontWeight: 600,
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            {activeCount}
+          </span>
+        )}
+        <motion.span
+          animate={{ rotate: open ? 180 : 0 }}
+          transition={{ duration: 0.25, ease: EASE }}
+          style={{ display: "inline-flex", opacity: 0.6 }}
+        >
+          <Glyph size={12}>{ChevronDown}</Glyph>
         </motion.span>
       </button>
       <AnimatePresence>
         {open && (
-          <motion.div
-            initial={{ opacity: 0, y: -6, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -6, scale: 0.98 }}
-            transition={{ duration: 0.2, ease: EASE }}
-            style={{
-              position: "absolute",
-              top: "calc(100% + 8px)",
-              right: 0,
-              zIndex: 30,
-              background: "#fff",
-              borderRadius: 14,
-              border: "1px solid rgba(84,84,84,0.12)",
-              boxShadow: "0 18px 40px rgba(0,0,0,0.12)",
-              padding: 6,
-              minWidth: 210,
-            }}
-          >
-            {SORTS.map((s) => (
-              <button
-                key={s.id}
-                onMouseDown={() => {
-                  onChange(s.id);
-                  setOpen(false);
-                }}
-                style={{
-                  display: "flex",
-                  width: "100%",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  background: s.id === value ? "rgba(84,84,84,0.06)" : "none",
-                  border: "none",
-                  borderRadius: 9,
-                  padding: "10px 12px",
-                  cursor: "pointer",
-                  fontFamily: "'Inter Tight', sans-serif",
-                  fontSize: 13,
-                  fontWeight: s.id === value ? 600 : 400,
-                  color: TEXT_COLOR,
-                  textAlign: "left",
-                }}
-              >
-                {s.label}
-                {s.id === value && <span style={{ color: "#9bb400" }}>●</span>}
-              </button>
-            ))}
-          </motion.div>
+          <>
+            <div
+              onClick={() => setOpen(false)}
+              style={{ position: "fixed", inset: 0, zIndex: 45 }}
+            />
+            <motion.div
+              initial={{ opacity: 0, y: -6, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -6, scale: 0.98 }}
+              transition={{ duration: 0.2, ease: EASE }}
+              style={{
+                position: "absolute",
+                top: "calc(100% + 10px)",
+                [align]: 0,
+                zIndex: 46,
+                background: "#fff",
+                borderRadius: 14,
+                border: HAIRLINE,
+                boxShadow: "0 18px 40px rgba(17,17,17,0.1)",
+                padding: 16,
+                minWidth: 250,
+                maxHeight: 400,
+                overflowY: "auto",
+              }}
+            >
+              {children}
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </div>
   );
 }
 
-/* ----------------------------------------------------------- filter panel */
+/* --------------------------------------------------------------- sort UI */
+
+function SortControl({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const current = SORTS.find((s) => s.id === value)!;
+  return (
+    <FilterPopover label={`Sort · ${current.label}`} align="right">
+      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        {SORTS.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => onChange(s.id)}
+            style={{
+              display: "flex",
+              width: "100%",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 18,
+              background: s.id === value ? "rgba(58,58,58,0.06)" : "none",
+              border: "none",
+              borderRadius: 9,
+              padding: "10px 12px",
+              cursor: "pointer",
+              fontFamily: "'Inter Tight', sans-serif",
+              fontSize: 13,
+              fontWeight: s.id === value ? 600 : 400,
+              color: TEXT_COLOR,
+              textAlign: "left",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {s.label}
+            {s.id === value && <Glyph size={13}>{CheckGlyph}</Glyph>}
+          </button>
+        ))}
+      </div>
+    </FilterPopover>
+  );
+}
+
+/* ---------------------------------------------------------- filter pieces */
 
 /** Collect every slug in a tree (for the default-expanded set). */
 const allSlugs = (nodes: CategoryNode[]): string[] =>
@@ -155,10 +257,21 @@ function CategoryTreeFilter({
             <button
               onClick={() => toggleExpand(n.slug)}
               aria-label={open ? "Collapse" : "Expand"}
-              style={{ background: "none", border: "none", padding: 0, cursor: "pointer", width: 14, color: "rgba(84,84,84,0.55)", lineHeight: 1 }}
+              style={{
+                background: "none",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+                width: 14,
+                color: "rgba(58,58,58,0.55)",
+                lineHeight: 1,
+              }}
             >
-              <motion.span animate={{ rotate: open ? 90 : 0 }} style={{ display: "inline-block", fontSize: 10 }}>
-                ▸
+              <motion.span
+                animate={{ rotate: open ? 90 : 0 }}
+                style={{ display: "inline-flex" }}
+              >
+                <Glyph size={11}>{ChevronRight}</Glyph>
               </motion.span>
             </button>
           ) : (
@@ -168,7 +281,16 @@ function CategoryTreeFilter({
             <Check label={n.name} checked={selected.includes(n.slug)} onChange={() => onToggle(n.slug)} />
           </div>
           {n.totalCount > 0 && (
-            <span style={{ fontSize: 11.5, color: "rgba(84,84,84,0.4)", flexShrink: 0 }}>{n.totalCount}</span>
+            <span
+              style={{
+                fontSize: 11.5,
+                color: "rgba(58,58,58,0.45)",
+                flexShrink: 0,
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {n.totalCount}
+            </span>
           )}
         </div>
         {kids.length > 0 && (
@@ -193,6 +315,108 @@ function CategoryTreeFilter({
   return <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{nodes.map((n) => renderNode(n, 0))}</div>;
 }
 
+function CategoryFilterBody({
+  cats,
+  onToggleCat,
+}: {
+  cats: string[];
+  onToggleCat: (v: string) => void;
+}) {
+  const { categories, categoryTree } = useCatalog();
+  return categoryTree.length > 0 ? (
+    <CategoryTreeFilter nodes={categoryTree} selected={cats} onToggle={onToggleCat} />
+  ) : (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {categories.map((c) => (
+        <Check key={c} label={c} checked={cats.includes(c)} onChange={() => onToggleCat(c)} />
+      ))}
+    </div>
+  );
+}
+
+function ColorFilterBody({
+  colors,
+  onToggleColor,
+}: {
+  colors: string[];
+  onToggleColor: (v: string) => void;
+}) {
+  const { colors: allColors } = useCatalog();
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 10, maxWidth: 250 }}>
+      {allColors.map((c) => {
+        const on = colors.includes(c.name);
+        // Colour options render as a swatch; non-colour variants (no hex)
+        // render as a readable text pill so the filter stays discoverable.
+        return c.hex ? (
+          <button
+            key={c.name}
+            onClick={() => onToggleColor(c.name)}
+            title={c.name}
+            aria-label={c.name}
+            aria-pressed={on}
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: "50%",
+              background: c.hex,
+              cursor: "pointer",
+              border: on ? "2px solid #111" : "2px solid rgba(58,58,58,0.2)",
+              outline: on ? `2px solid ${GLOW_COLOR}` : "none",
+              outlineOffset: 2,
+              transition: "outline 0.2s ease, border 0.2s ease",
+            }}
+          />
+        ) : (
+          <button
+            key={c.name}
+            onClick={() => onToggleColor(c.name)}
+            title={c.name}
+            aria-pressed={on}
+            style={{
+              height: 28,
+              padding: "0 12px",
+              borderRadius: 999,
+              background: on ? GLOW_COLOR : "transparent",
+              cursor: "pointer",
+              fontFamily: "'Inter Tight', sans-serif",
+              fontSize: 12.5,
+              fontWeight: on ? 600 : 400,
+              color: "#111",
+              border: on ? "2px solid #111" : "2px solid rgba(58,58,58,0.2)",
+              transition: "background 0.2s ease, border 0.2s ease",
+            }}
+          >
+            {c.name}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function PriceFilterBody({
+  buckets,
+  onToggleBucket,
+}: {
+  buckets: string[];
+  onToggleBucket: (v: string) => void;
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {PRICE_BUCKETS.map((b) => (
+        <Check
+          key={b.id}
+          label={b.label}
+          checked={buckets.includes(b.id)}
+          onChange={() => onToggleBucket(b.id)}
+        />
+      ))}
+    </div>
+  );
+}
+
+/** Full stacked filter set — used by the mobile drawer. */
 function FilterPanel({
   cats,
   colors,
@@ -208,89 +432,19 @@ function FilterPanel({
   onToggleColor: (v: string) => void;
   onToggleBucket: (v: string) => void;
 }) {
-  const { categories, categoryTree, colors: allColors } = useCatalog();
-  const hasTree = categoryTree.length > 0;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 30 }}>
-      {/* category */}
       <div>
         <FilterTitle>Category</FilterTitle>
-        {hasTree ? (
-          <CategoryTreeFilter nodes={categoryTree} selected={cats} onToggle={onToggleCat} />
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {categories.map((c) => (
-              <Check key={c} label={c} checked={cats.includes(c)} onChange={() => onToggleCat(c)} />
-            ))}
-          </div>
-        )}
+        <CategoryFilterBody cats={cats} onToggleCat={onToggleCat} />
       </div>
-
-      {/* color */}
       <div>
         <FilterTitle>Color</FilterTitle>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-          {allColors.map((c) => {
-            const on = colors.includes(c.name);
-            // Colour options render as a swatch; non-colour variants (no hex)
-            // render as a readable text pill so the filter stays discoverable.
-            return c.hex ? (
-              <button
-                key={c.name}
-                onClick={() => onToggleColor(c.name)}
-                title={c.name}
-                aria-label={c.name}
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: "50%",
-                  background: c.hex,
-                  cursor: "pointer",
-                  border: on ? "2px solid #111" : "2px solid rgba(84,84,84,0.2)",
-                  outline: on ? `2px solid ${GLOW_COLOR}` : "none",
-                  outlineOffset: 2,
-                  transition: "outline 0.2s ease, border 0.2s ease",
-                }}
-              />
-            ) : (
-              <button
-                key={c.name}
-                onClick={() => onToggleColor(c.name)}
-                title={c.name}
-                style={{
-                  height: 28,
-                  padding: "0 12px",
-                  borderRadius: 999,
-                  background: on ? GLOW_COLOR : "transparent",
-                  cursor: "pointer",
-                  fontFamily: "'Inter Tight', sans-serif",
-                  fontSize: 12.5,
-                  fontWeight: on ? 600 : 400,
-                  color: "#111",
-                  border: on ? "2px solid #111" : "2px solid rgba(84,84,84,0.2)",
-                  transition: "background 0.2s ease, border 0.2s ease",
-                }}
-              >
-                {c.name}
-              </button>
-            );
-          })}
-        </div>
+        <ColorFilterBody colors={colors} onToggleColor={onToggleColor} />
       </div>
-
-      {/* price */}
       <div>
         <FilterTitle>Price</FilterTitle>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {PRICE_BUCKETS.map((b) => (
-            <Check
-              key={b.id}
-              label={b.label}
-              checked={buckets.includes(b.id)}
-              onChange={() => onToggleBucket(b.id)}
-            />
-          ))}
-        </div>
+        <PriceFilterBody buckets={buckets} onToggleBucket={onToggleBucket} />
       </div>
     </div>
   );
@@ -303,7 +457,7 @@ function FilterTitle({ children }: { children: React.ReactNode }) {
         fontSize: 11,
         fontWeight: 600,
         letterSpacing: "2px",
-        color: "rgba(84,84,84,0.5)",
+        color: "rgba(58,58,58,0.62)",
         marginBottom: 14,
         textTransform: "uppercase",
       }}
@@ -325,6 +479,8 @@ function Check({
   return (
     <button
       onClick={onChange}
+      role="checkbox"
+      aria-checked={checked}
       style={{
         display: "flex",
         alignItems: "center",
@@ -334,7 +490,7 @@ function Check({
         padding: 0,
         cursor: "pointer",
         fontFamily: "'Inter Tight', sans-serif",
-        fontSize: 14,
+        fontSize: 13.5,
         color: TEXT_COLOR,
         textAlign: "left",
       }}
@@ -344,18 +500,17 @@ function Check({
           width: 18,
           height: 18,
           borderRadius: 5,
-          border: checked ? "none" : "1.5px solid rgba(84,84,84,0.35)",
+          border: checked ? "none" : "1.5px solid rgba(58,58,58,0.35)",
           background: checked ? GLOW_COLOR : "transparent",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           flexShrink: 0,
+          color: "#111",
           transition: "background 0.2s ease",
         }}
       >
-        {checked && (
-          <span style={{ color: "#111", fontSize: 12, lineHeight: 1 }}>✓</span>
-        )}
+        {checked && <Glyph size={11}>{CheckGlyph}</Glyph>}
       </span>
       {label}
     </button>
@@ -471,18 +626,28 @@ export default function Shop() {
   return (
     <div
       data-tone="light"
+      className="shop-page"
       style={{
         minHeight: "100vh",
         background: "#ffffff",
         fontFamily: "'Inter Tight', sans-serif",
       }}
     >
+      {/* Browser surfaces carry the brand too: selection + focus rings. */}
+      <style>{`
+        .shop-page ::selection{background:rgba(217,196,154,0.5)}
+        .shop-page button:focus-visible{outline:2px solid ${GLOW_COLOR_HEX};outline-offset:2px}
+        .shop-chip{transition:border 0.2s ease,color 0.2s ease}
+        .shop-chip:hover{border-color:rgba(58,58,58,0.55)}
+        .shop-clear{transition:color 0.2s ease}
+        .shop-clear:hover{color:${TEXT_COLOR_HEX}}
+      `}</style>
       <Header />
 
       {/* title */}
       <div
         style={{
-          padding: isMobile ? `110px ${PAGE_PAD} 24px` : `150px ${PAGE_PAD} 30px`,
+          padding: isMobile ? `108px ${PAGE_PAD} 26px` : `142px ${PAGE_PAD} 36px`,
           maxWidth: PAGE_MAX,
           margin: "0 auto",
         }}
@@ -491,106 +656,126 @@ export default function Shop() {
           initial={{ opacity: 0, filter: "blur(8px)", y: 14 }}
           animate={{ opacity: 1, filter: "blur(0px)", y: 0 }}
           transition={{ duration: 0.7, ease: EASE }}
+          style={{ display: "flex", alignItems: "baseline", gap: 14 }}
         >
-          <div
+          <span
             style={{
-              fontSize: 11,
+              fontSize: isMobile ? "clamp(40px, 13vw, 72px)" : 72,
               fontWeight: 600,
-              letterSpacing: "2.5px",
-              color: "rgba(84,84,84,0.5)",
-              marginBottom: 14,
+              letterSpacing: "-3px",
+              lineHeight: 1,
+              color: TEXT_COLOR,
             }}
           >
-            THE CATALOG
-          </div>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
-            <span
-              style={{
-                fontSize: isMobile ? "clamp(40px, 13vw, 72px)" : 72,
-                fontWeight: 600,
-                letterSpacing: "-3px",
-                lineHeight: 1,
-                color: TEXT_COLOR,
-              }}
-            >
-              Shop
-            </span>
-            <SerifGlow
-              word="all"
-              italic
-              fontSize={isMobile ? "clamp(44px, 14vw, 78px)" : 78}
-              lineHeight={isMobile ? "clamp(40px, 13vw, 74px)" : 74}
-              letterSpacing={-3}
-              strokeWidth={isMobile ? "clamp(9px, 3vw, 16px)" : 16}
-              delay={0.3}
-            />
-          </div>
+            Shop
+          </span>
+          <SerifGlow
+            word="all"
+            italic
+            fontSize={isMobile ? "clamp(44px, 14vw, 78px)" : 78}
+            lineHeight={isMobile ? "clamp(40px, 13vw, 74px)" : 74}
+            letterSpacing={-3}
+            strokeWidth={isMobile ? "clamp(9px, 3vw, 16px)" : 16}
+            delay={0.3}
+          />
         </motion.div>
       </div>
 
-      {/* toolbar */}
+      {/* filter bar */}
       <div
         style={{
           position: "sticky",
           top: 0,
           zIndex: 40,
-          background: "rgba(255,255,255,0.85)",
+          background: "rgba(255,255,255,0.88)",
           backdropFilter: "blur(12px)",
-          borderBottom: "1px solid rgba(84,84,84,0.1)",
+          WebkitBackdropFilter: "blur(12px)",
+          borderTop: HAIRLINE,
+          borderBottom: HAIRLINE,
         }}
       >
         <div
           style={{
             maxWidth: PAGE_MAX,
             margin: "0 auto",
-            padding: isMobile ? `12px ${PAGE_PAD}` : `16px ${PAGE_PAD}`,
+            padding: isMobile ? `11px ${PAGE_PAD}` : `13px ${PAGE_PAD}`,
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
             gap: 12,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            {isMobile && (
-              <button
-                onClick={() => setDrawer(true)}
+          {isMobile ? (
+            <button
+              onClick={() => setDrawer(true)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                background: "#fff",
+                border: `1px solid ${activeChips.length ? "rgba(58,58,58,0.55)" : "rgba(58,58,58,0.2)"}`,
+                borderRadius: 999,
+                padding: "9px 16px",
+                cursor: "pointer",
+                fontFamily: "'Inter Tight', sans-serif",
+                fontSize: 13,
+                fontWeight: 500,
+                color: TEXT_COLOR,
+              }}
+            >
+              <Glyph size={13}>{SlidersGlyph}</Glyph>
+              Filter
+              {activeChips.length > 0 && (
+                <span
+                  style={{
+                    background: GLOW_COLOR,
+                    color: "#111",
+                    borderRadius: 999,
+                    padding: "1px 7px",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                >
+                  {activeChips.length}
+                </span>
+              )}
+            </button>
+          ) : (
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <span
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  background: "#fff",
-                  border: "1px solid rgba(84,84,84,0.2)",
-                  borderRadius: 999,
-                  padding: "9px 16px",
-                  cursor: "pointer",
-                  fontFamily: "'Inter Tight', sans-serif",
                   fontSize: 13,
-                  fontWeight: 500,
-                  color: TEXT_COLOR,
+                  color: "rgba(58,58,58,0.72)",
+                  fontVariantNumeric: "tabular-nums",
                 }}
               >
-                Filters
-                {activeChips.length > 0 && (
-                  <span
-                    style={{
-                      background: GLOW_COLOR,
-                      color: "#111",
-                      borderRadius: 999,
-                      padding: "1px 7px",
-                      fontSize: 11,
-                      fontWeight: 600,
-                    }}
-                  >
-                    {activeChips.length}
-                  </span>
-                )}
-              </button>
-            )}
-            <span style={{ fontSize: 13, color: "rgba(84,84,84,0.7)" }}>
-              {results.length} {results.length === 1 ? "result" : "results"}
-            </span>
-          </div>
-          <SortDropdown value={sort} onChange={setSort} />
+                {results.length} {results.length === 1 ? "result" : "results"}
+              </span>
+              {activeChips.length > 0 && (
+                <button
+                  onClick={clearAll}
+                  className="shop-clear"
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: "0 4px",
+                    cursor: "pointer",
+                    fontFamily: "'Inter Tight', sans-serif",
+                    fontSize: 12.5,
+                    fontWeight: 500,
+                    color: "rgba(58,58,58,0.62)",
+                    textDecoration: "underline",
+                    textUnderlineOffset: 3,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
+          )}
+          <SortControl value={sort} onChange={setSort} />
         </div>
       </div>
 
@@ -599,129 +784,109 @@ export default function Shop() {
         style={{
           maxWidth: PAGE_MAX,
           margin: "0 auto",
-          padding: isMobile ? `24px ${PAGE_PAD} 80px` : `40px ${PAGE_PAD} 100px`,
+          padding: isMobile ? `24px ${PAGE_PAD} 80px` : `36px ${PAGE_PAD} 100px`,
           display: "flex",
-          gap: 48,
+          gap: isMobile ? 0 : 56,
           alignItems: "flex-start",
         }}
       >
         {/* desktop sidebar */}
         {!isMobile && (
-          <aside
-            style={{
-              flex: "0 0 220px",
-              position: "sticky",
-              top: 80,
-            }}
-          >
+          <aside style={{ flex: "0 0 230px", position: "sticky", top: 96 }}>
             <FilterPanel {...panelProps} />
           </aside>
         )}
 
-        {/* grid + chips */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          {/* active chips */}
-          {activeChips.length > 0 && (
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 8,
-                marginBottom: 24,
-                alignItems: "center",
-              }}
-            >
-              {activeChips.map((c) => (
-                <button
-                  key={c.kind + c.value}
-                  onClick={() => removeChip(c.kind, c.value)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    background: "#fff",
-                    border: "1px solid rgba(84,84,84,0.18)",
-                    borderRadius: 999,
-                    padding: "6px 12px",
-                    cursor: "pointer",
-                    fontFamily: "'Inter Tight', sans-serif",
-                    fontSize: 12.5,
-                    color: TEXT_COLOR,
-                  }}
-                >
-                  {c.label}
-                  <span style={{ opacity: 0.5, fontSize: 14 }}>✕</span>
-                </button>
-              ))}
+        {/* active chips */}
+        {activeChips.length > 0 && (
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 8,
+              marginBottom: isMobile ? 20 : 28,
+              alignItems: "center",
+            }}
+          >
+            {activeChips.map((c) => (
               <button
-                onClick={clearAll}
+                key={c.kind + c.value}
+                onClick={() => removeChip(c.kind, c.value)}
+                className="shop-chip"
+                aria-label={`Remove filter ${c.label}`}
                 style={{
-                  background: "none",
-                  border: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 7,
+                  background: "#fff",
+                  border: "1px solid rgba(58,58,58,0.18)",
+                  borderRadius: 999,
+                  padding: "6px 12px",
                   cursor: "pointer",
                   fontFamily: "'Inter Tight', sans-serif",
                   fontSize: 12.5,
-                  fontWeight: 500,
-                  color: "rgba(84,84,84,0.7)",
-                  textDecoration: "underline",
+                  color: TEXT_COLOR,
                 }}
               >
-                Clear all
+                {c.label}
+                <span style={{ opacity: 0.55, display: "inline-flex" }}>
+                  <Glyph size={11}>{XGlyph}</Glyph>
+                </span>
               </button>
-            </div>
-          )}
+            ))}
+          </div>
+        )}
 
-          {results.length === 0 ? (
-            <div
+        {results.length === 0 ? (
+          <div
+            style={{
+              padding: "90px 0",
+              textAlign: "center",
+              color: "rgba(58,58,58,0.62)",
+            }}
+          >
+            <div style={{ fontSize: 22, fontWeight: 500, color: TEXT_COLOR, marginBottom: 8 }}>
+              Nothing matches
+            </div>
+            <div style={{ fontSize: 14, marginBottom: 22 }}>
+              Try removing a filter to see more pieces.
+            </div>
+            <button
+              onClick={clearAll}
               style={{
-                padding: "80px 0",
-                textAlign: "center",
-                color: "rgba(84,84,84,0.6)",
+                background: GLOW_COLOR,
+                border: "none",
+                borderRadius: 999,
+                padding: "13px 28px",
+                cursor: "pointer",
+                fontFamily: "'Inter Tight', sans-serif",
+                fontSize: 14,
+                fontWeight: 600,
+                color: "#111",
               }}
             >
-              <div style={{ fontSize: 22, color: TEXT_COLOR, marginBottom: 8 }}>
-                Nothing matches
-              </div>
-              <div style={{ fontSize: 14, marginBottom: 20 }}>
-                Try removing a filter to see more pieces.
-              </div>
-              <button
-                onClick={clearAll}
-                style={{
-                  background: GLOW_COLOR,
-                  border: "none",
-                  borderRadius: 999,
-                  padding: "12px 26px",
-                  cursor: "pointer",
-                  fontFamily: "'Inter Tight', sans-serif",
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: "#111",
-                }}
-              >
-                Clear all filters
-              </button>
-            </div>
-          ) : (
-            <LayoutGroup>
-              <motion.div
-                layout
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: isMobile
-                    ? "repeat(2, 1fr)"
-                    : "repeat(3, 1fr)",
-                  gap: isMobile ? 16 : 28,
-                }}
-              >
-                <AnimatePresence mode="popLayout">
-                  {results.map((p, i) => (
-                    <ProductCard key={p.id} product={p} index={i} showQuickAdd />
-                  ))}
-                </AnimatePresence>
-              </motion.div>
-            </LayoutGroup>
-          )}
+              Clear all filters
+            </button>
+          </div>
+        ) : (
+          <LayoutGroup>
+            <motion.div
+              layout
+              style={{
+                display: "grid",
+                gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(3, 1fr)",
+                gap: isMobile ? "24px 16px" : "44px 32px",
+              }}
+            >
+              <AnimatePresence mode="popLayout">
+                {results.map((p, i) => (
+                  <ProductCard key={p.id} product={p} index={i} showQuickAdd />
+                ))}
+              </AnimatePresence>
+            </motion.div>
+          </LayoutGroup>
+        )}
         </div>
       </div>
 
@@ -768,26 +933,22 @@ export default function Shop() {
                   marginBottom: 28,
                 }}
               >
-                <span
-                  style={{
-                    fontSize: 18,
-                    fontWeight: 600,
-                    color: TEXT_COLOR,
-                  }}
-                >
-                  Filters
+                <span style={{ fontSize: 18, fontWeight: 600, color: TEXT_COLOR }}>
+                  Filter
                 </span>
                 <button
                   onClick={() => setDrawer(false)}
+                  aria-label="Close filters"
                   style={{
                     background: "none",
                     border: "none",
-                    fontSize: 20,
+                    padding: 6,
                     cursor: "pointer",
                     color: TEXT_COLOR,
+                    display: "inline-flex",
                   }}
                 >
-                  ✕
+                  <Glyph size={16}>{XGlyph}</Glyph>
                 </button>
               </div>
               <FilterPanel {...panelProps} />
@@ -797,7 +958,7 @@ export default function Shop() {
                   style={{
                     flex: 1,
                     background: "none",
-                    border: "1px solid rgba(84,84,84,0.25)",
+                    border: "1px solid rgba(58,58,58,0.25)",
                     borderRadius: 999,
                     padding: "13px 0",
                     cursor: "pointer",
@@ -823,7 +984,7 @@ export default function Shop() {
                     color: "#111",
                   }}
                 >
-                  Show {results.length} results
+                  Show {results.length} result{results.length === 1 ? "" : "s"}
                 </button>
               </div>
             </motion.div>

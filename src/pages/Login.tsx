@@ -7,9 +7,11 @@ import {
   AuthButton,
   SocialButtons,
   Divider,
+  TrustLine,
+  SwitchLine,
   isEmail,
 } from "../components/AuthUI";
-import { TEXT_COLOR, GLOW_COLOR } from "../lib/constants";
+import { TEXT_COLOR } from "../lib/constants";
 import { useAuth } from "../context/Auth";
 import { setPageMeta, resetPageMeta } from "../lib/meta";
 
@@ -18,9 +20,14 @@ export default function Login() {
   const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [pwd, setPwd] = useState("");
-  const [remember, setRemember] = useState(true);
-  const [errors, setErrors] = useState<{ email?: string; pwd?: string }>({});
+  const [touched, setTouched] = useState<{ email?: boolean; pwd?: boolean }>({});
+  const [submitError, setSubmitError] = useState<string>();
   const [loading, setLoading] = useState(false);
+
+  // Live validation: shown once a field is touched, re-evaluated per keystroke.
+  const emailOk = isEmail(email);
+  const errEmail = touched.email && !emailOk ? "Enter a valid email address." : undefined;
+  const errPwd = touched.pwd && pwd.length === 0 ? "Enter your password." : undefined;
 
   useEffect(() => {
     setPageMeta({
@@ -33,28 +40,22 @@ export default function Login() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const errs: typeof errors = {};
-    if (!isEmail(email)) errs.email = "Enter a valid email address.";
-    if (pwd.length < 1) errs.pwd = "Enter your password.";
-    setErrors(errs);
-    if (Object.keys(errs).length) return;
+    setTouched({ email: true, pwd: true });
+    setSubmitError(undefined);
+    if (!emailOk || pwd.length === 0) return;
     setLoading(true);
     try {
       await signIn(email, pwd);
       navigate("/account");
     } catch (err: any) {
-      setErrors({ pwd: err?.message || "Invalid email or password." });
+      setSubmitError(err?.message || "Invalid email or password.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <AuthLayout
-      quoteLead="Welcome"
-      quoteAccent="back"
-      caption="Your bag, your saved pieces and your order history — right where you left them."
-    >
+    <AuthLayout>
       <AuthHeading
         lead="Welcome"
         accent="back"
@@ -64,68 +65,47 @@ export default function Login() {
         <Field
           label="Email"
           type="email"
+          name="email"
           value={email}
           onChange={setEmail}
-          error={errors.email}
+          onBlur={() => setTouched((t) => ({ ...t, email: true }))}
+          error={errEmail}
+          valid={emailOk}
           placeholder="you@email.com"
           autoComplete="email"
         />
         <Field
           label="Password"
           type="password"
+          name="password"
           value={pwd}
           onChange={setPwd}
-          error={errors.pwd}
-          placeholder="••••••••"
+          onBlur={() => setTouched((t) => ({ ...t, pwd: true }))}
+          error={errPwd}
+          placeholder="Your password"
           autoComplete="current-password"
         />
+        {submitError && (
+          <div role="alert" style={{ fontSize: 12.5, color: "#c0563f", marginBottom: 12 }}>
+            {submitError}
+          </div>
+        )}
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            margin: "6px 0 22px",
-          }}
-        >
-          <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              cursor: "pointer",
-              fontSize: 13,
-              color: "rgba(84,84,84,0.75)",
-            }}
-          >
-            <span
-              onClick={() => setRemember((r) => !r)}
-              style={{
-                width: 18,
-                height: 18,
-                borderRadius: 5,
-                border: remember ? "none" : "1.5px solid rgba(84,84,84,0.35)",
-                background: remember ? GLOW_COLOR : "transparent",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              {remember && <span style={{ color: "#111", fontSize: 11 }}>✓</span>}
-            </span>
-            Remember me
-          </label>
+        <div style={{ display: "flex", justifyContent: "flex-end", margin: "2px 0 22px" }}>
           <button
             type="button"
             onClick={() => navigate("/forgot-password")}
+            className="auth-link"
             style={{
               background: "none",
               border: "none",
+              padding: 0,
               cursor: "pointer",
               fontFamily: "'Inter Tight', sans-serif",
               fontSize: 13,
               color: TEXT_COLOR,
               textDecoration: "underline",
+              textUnderlineOffset: 3,
             }}
           >
             Forgot password?
@@ -137,34 +117,15 @@ export default function Login() {
         </AuthButton>
       </form>
 
-      <Divider label="or" />
+      <Divider label="or continue with" />
       <SocialButtons />
 
-      <div
-        style={{
-          textAlign: "center",
-          marginTop: 26,
-          fontSize: 14,
-          color: "rgba(84,84,84,0.7)",
-        }}
-      >
-        New to The A Line?{" "}
-        <button
-          onClick={() => navigate("/register")}
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            fontFamily: "'Inter Tight', sans-serif",
-            fontSize: 14,
-            fontWeight: 600,
-            color: TEXT_COLOR,
-            textDecoration: "underline",
-          }}
-        >
-          Create an account
-        </button>
-      </div>
+      <SwitchLine
+        prompt="New to The A Line?"
+        action="Create an account"
+        onClick={() => navigate("/register")}
+      />
+      <TrustLine>Encrypted sign-in — your details stay private.</TrustLine>
     </AuthLayout>
   );
 }
