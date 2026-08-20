@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import { apiGet, apiSend } from "../../lib/api";
 import { useToast } from "../../context/Toast";
-import { AdminHeader, DataTable, Modal, StatusPill, IconButton, PencilIcon, TrashIcon, PlusIcon, useConfirm, ui, INK, MUTED, type Column } from "./ui";
+import { AdminHeader, Modal, PencilIcon, TrashIcon, PlusIcon, useConfirm, ui } from "./ui";
+import { AdminTable, AdminTableShell, adminTableStyles, TBL, statusPill, RowSkeleton } from "./shared/AdminTable";
 
 type Brand = { id: number; name: string; description: string; logo: string; status: string; productCount: number };
 
@@ -38,34 +39,51 @@ export default function AdminBrands() {
     catch (e: any) { show({ title: e.message, tone: "error" }); setBusy(null); }
   };
 
-  const columns: Column<Brand>[] = [
-    {
-      key: "brand", header: "Brand", width: "minmax(220px, 2fr)",
-      render: (b) => (
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 14.5, fontWeight: 600, color: INK }}>{b.name}</div>
-          {b.description && <div style={{ fontSize: 12.5, color: MUTED, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.description}</div>}
-        </div>
-      ),
-    },
-    { key: "count", header: "Products", width: 110, render: (b) => <span style={{ fontSize: 13, color: MUTED }}>{b.productCount}</span> },
-    { key: "status", header: "Status", width: 110, render: (b) => <StatusPill label={b.status} active={b.status === "active"} /> },
-    {
-      key: "actions", header: "", width: 96, align: "right",
-      render: (b) => (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
-          <IconButton icon={<PencilIcon />} title="Edit" onClick={() => openEdit(b)} />
-          <IconButton icon={<TrashIcon />} title="Delete" onClick={() => remove(b)} />
-        </div>
-      ),
-    },
-  ];
-
   return (
     <div>
+      <style>{adminTableStyles}</style>
       <AdminHeader eyebrow="CATALOG" title="Brands" action={<button onClick={openNew} style={{ ...ui.primaryBtn, display: "inline-flex", alignItems: "center", gap: 7 }}><PlusIcon size={15} /> New brand</button>} />
 
-      <DataTable columns={columns} rows={list} rowKey={(b) => b.id} loading={loading} busyKey={busy} empty="No brands yet." />
+      <AdminTableShell minWidth={640} maxHeight="calc(100vh - 280px)" minHeight={260}>
+        <AdminTable>
+          <thead>
+            <tr>
+              <th>Brand</th>
+              <th style={{ width: 110 }}>Products</th>
+              <th style={{ width: 110 }}>Status</th>
+              <th className="admin-pin-right" style={{ width: 96, textAlign: "right" }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <RowSkeleton key={i} widths={["60%", 40, 55, 44]} />
+              ))
+            ) : list.length === 0 ? (
+              <tr><td colSpan={4} style={{ textAlign: "center", padding: 32, color: TBL.textMuted }}>No brands yet.</td></tr>
+            ) : (
+              list.map((b) => (
+                <tr key={b.id} className="admin-tbl-row" style={{ opacity: busy === b.id ? 0.45 : 1 }}>
+                  <td>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: 12 }}>{b.name}</div>
+                      {b.description && <div style={{ fontSize: 11, color: TBL.textMuted, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.description}</div>}
+                    </div>
+                  </td>
+                  <td style={{ color: TBL.textSub }}>{b.productCount}</td>
+                  <td>{statusPill(b.status)}</td>
+                  <td className="admin-pin-right" style={{ textAlign: "right" }}>
+                    <div style={{ display: "inline-flex", gap: 6 }}>
+                      <button className="admin-act-btn" title="Edit" aria-label={`Edit ${b.name}`} onClick={() => openEdit(b)}><PencilIcon /></button>
+                      <button className="admin-act-btn del" title="Delete" aria-label={`Delete ${b.name}`} onClick={() => remove(b)}><TrashIcon /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </AdminTable>
+      </AdminTableShell>
 
       <AnimatePresence>
         {modal && (

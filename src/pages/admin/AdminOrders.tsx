@@ -3,21 +3,29 @@ import { motion, AnimatePresence } from "framer-motion";
 import { TEXT_COLOR } from "../../lib/constants";
 import { apiGet, apiSend } from "../../lib/api";
 import { useToast } from "../../context/Toast";
+import { ChevronRightIcon } from "./ui";
+import { AdminTable, AdminTableShell, adminTableStyles, TBL, statusPill, RowSkeleton } from "./shared/AdminTable";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 import { useBaseMoney } from "../../context/Currency";
 const fmt = (s: string) => { try { return new Date(s).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }); } catch { return s; } };
 const STATUSES = ["pending", "paid", "processing", "shipped", "delivered", "cancelled", "refunded"];
-const statusColor = (s: string) => s === "delivered" ? "#6a8f00" : s === "cancelled" || s === "refunded" ? "#c0563f" : s === "shipped" ? "#3b7" : "#b8860b";
 
 export default function AdminOrders() {
   const money = useBaseMoney();
   const { show } = useToast();
   const [list, setList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
   const [detail, setDetail] = useState<any | null>(null);
 
-  const load = () => apiGet<any[]>(`admin/orders${filter ? `?status=${filter}` : ""}`, true).then(setList).catch((e) => show({ title: e.message, tone: "error" }));
+  const load = () => {
+    setLoading(true);
+    return apiGet<any[]>(`admin/orders${filter ? `?status=${filter}` : ""}`, true)
+      .then(setList)
+      .catch((e) => show({ title: e.message, tone: "error" }))
+      .finally(() => setLoading(false));
+  };
   useEffect(() => { load(); }, [filter]);
 
   const openDetail = (id: number) => apiGet<any>(`admin/orders/${id}`, true).then(setDetail).catch((e) => show({ title: e.message, tone: "error" }));
@@ -33,6 +41,7 @@ export default function AdminOrders() {
 
   return (
     <div>
+      <style>{adminTableStyles}</style>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
         <div>
           <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "2.5px", color: "rgba(84,84,84,0.5)", marginBottom: 8 }}>SALES</div>
@@ -44,20 +53,47 @@ export default function AdminOrders() {
         </select>
       </div>
 
-      <div style={{ background: "#fff", border: "1px solid rgba(84,84,84,0.1)", borderRadius: 16, overflow: "hidden" }}>
-        {list.length === 0 && <div style={{ padding: 40, textAlign: "center", color: "rgba(84,84,84,0.5)" }}>No orders</div>}
-        {list.map((o, i) => (
-          <button key={o.id} onClick={() => openDetail(o.id)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", background: "none", border: "none", borderTop: i === 0 ? "none" : "1px solid rgba(84,84,84,0.07)", cursor: "pointer", fontFamily: "'Inter Tight', sans-serif", textAlign: "left", flexWrap: "wrap" }}>
-            <div style={{ flex: 1, minWidth: 140 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: TEXT_COLOR }}>{o.number}</div>
-              <div style={{ fontSize: 12.5, color: "rgba(84,84,84,0.55)" }}>{o.name || o.email} · {fmt(o.createdAt)}</div>
-            </div>
-            <span style={{ fontSize: 13, color: "rgba(84,84,84,0.6)" }}>{o.itemCount} items</span>
-            <span style={{ fontSize: 14, fontWeight: 600, color: TEXT_COLOR, width: 80, textAlign: "right" }}>{money(o.total)}</span>
-            <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.5px", color: "#fff", background: statusColor(o.status), borderRadius: 999, padding: "4px 11px", textTransform: "uppercase" }}>{o.status}</span>
-          </button>
-        ))}
-      </div>
+      <AdminTableShell minWidth={860} maxHeight="calc(100vh - 300px)" minHeight={260}>
+        <AdminTable>
+          <thead>
+            <tr>
+              <th style={{ width: 130 }}>Order</th>
+              <th>Customer</th>
+              <th style={{ width: 90 }}>Items</th>
+              <th style={{ width: 110 }}>Total</th>
+              <th style={{ width: 130 }}>Status</th>
+              <th className="admin-pin-right" style={{ width: 48, textAlign: "right" }} />
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <RowSkeleton key={i} widths={[80, "60%", 50, 60, 70, 18]} />
+              ))
+            ) : list.length === 0 ? (
+              <tr><td colSpan={6} style={{ textAlign: "center", padding: 32, color: TBL.textMuted }}>No orders</td></tr>
+            ) : (
+              list.map((o) => (
+                <tr key={o.id} className="admin-tbl-row" onClick={() => openDetail(o.id)} style={{ cursor: "pointer" }}>
+                  <td><span style={{ fontFamily: TBL.mono, fontWeight: 600, fontSize: 12 }}>{o.number}</span></td>
+                  <td>
+                    <div style={{ fontWeight: 500 }}>{o.name || o.email}</div>
+                    <div style={{ fontSize: 10, color: TBL.textMuted, marginTop: 2 }}>{fmt(o.createdAt)}</div>
+                  </td>
+                  <td style={{ color: TBL.textSub }}>{o.itemCount} items</td>
+                  <td style={{ fontWeight: 600 }}>{money(o.total)}</td>
+                  <td>{statusPill(o.status)}</td>
+                  <td className="admin-pin-right" style={{ textAlign: "right" }}>
+                    <button className="admin-act-btn" title="View order" aria-label={`View order ${o.number}`} onClick={(e) => { e.stopPropagation(); openDetail(o.id); }}>
+                      <ChevronRightIcon />
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </AdminTable>
+      </AdminTableShell>
 
       <AnimatePresence>
         {detail && (

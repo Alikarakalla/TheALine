@@ -849,19 +849,35 @@ export default function ProductPage() {
             )}
           </motion.div>
 
-          {/* description */}
-          <motion.p
-            {...block(3)}
-            style={{
-              fontSize: 14,
-              lineHeight: 1.75,
-              color: "rgba(84,84,84,0.8)",
-              marginBottom: 26,
-              maxWidth: 440,
-            }}
-          >
-            {product.description}
-          </motion.p>
+          {/* description — the admin's rich-text editor stores HTML, so render
+              it as markup (admin-authored, trusted); plain text passes through
+              unchanged. */}
+          {/<\/?[a-z][\s\S]*>/i.test(product.description || "") ? (
+            <motion.div
+              {...block(3)}
+              style={{
+                fontSize: 14,
+                lineHeight: 1.75,
+                color: "rgba(84,84,84,0.8)",
+                marginBottom: 26,
+                maxWidth: 440,
+              }}
+              dangerouslySetInnerHTML={{ __html: product.description }}
+            />
+          ) : (
+            <motion.p
+              {...block(3)}
+              style={{
+                fontSize: 14,
+                lineHeight: 1.75,
+                color: "rgba(84,84,84,0.8)",
+                marginBottom: 26,
+                maxWidth: 440,
+              }}
+            >
+              {product.description}
+            </motion.p>
+          )}
 
           {/* variant selectors — one group per attribute (Color, Size, …) */}
           {hasVariants ? (

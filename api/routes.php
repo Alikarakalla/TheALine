@@ -4,6 +4,7 @@ require_once __DIR__ . '/core/Util.php';
 require_once __DIR__ . '/controllers/AuthController.php';
 require_once __DIR__ . '/controllers/SettingsController.php';
 require_once __DIR__ . '/controllers/ProductsController.php';
+require_once __DIR__ . '/controllers/ProductFormController.php';
 require_once __DIR__ . '/controllers/CategoriesController.php';
 require_once __DIR__ . '/controllers/CollectionsController.php';
 require_once __DIR__ . '/controllers/OrdersController.php';
@@ -33,6 +34,7 @@ function registerRoutes(Router $router): void
 
     // ---- Admin dashboard ----
     $router->get('admin/dashboard', fn() => DashboardController::index());
+    $router->get('admin/dashboard/export', fn() => DashboardController::export());
 
     // ---- Currencies ----
     $router->get('currencies', fn() => CurrenciesController::index());
@@ -51,6 +53,17 @@ function registerRoutes(Router $router): void
     $router->get('products', fn() => ProductsController::index());
     $router->get('products/{id}', fn($p) => ProductsController::show($p));
     $router->get('admin/products', fn() => ProductsController::adminIndex());
+    // Lebazone-style form endpoints — registered before the {id} routes so
+    // 'form'/'subcategories' never match as a product id.
+    $router->get('admin/products/list', fn() => ProductFormController::adminList());
+    $router->get('admin/products/list-meta', fn() => ProductFormController::adminListMeta());
+    $router->post('admin/products/bulk-delete', fn() => ProductFormController::bulkDestroy());
+    $router->get('admin/products/form', fn() => ProductFormController::formCreate());
+    $router->get('admin/products/form/{id}', fn($p) => ProductFormController::formEdit($p));
+    $router->post('admin/products/form', fn() => ProductFormController::saveCreate());
+    $router->post('admin/products/form/{id}', fn($p) => ProductFormController::saveUpdate($p));
+    $router->get('admin/products/subcategories', fn() => ProductFormController::subcategories());
+    $router->get('admin/products/sub-subcategories', fn() => ProductFormController::subSubcategories());
     $router->get('admin/products/{id}', fn($p) => ProductsController::adminShow($p));
     $router->post('admin/products', fn() => ProductsController::create());
     $router->put('admin/products/{id}', fn($p) => ProductsController::update($p));

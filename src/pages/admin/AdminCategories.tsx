@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Field, AuthButton } from "../../components/AuthUI";
 import { TEXT_COLOR } from "../../lib/constants";
-import { AdminHeader, DataTable, StatusPill, IconButton, PencilIcon, TrashIcon, SubIcon, PlusIcon, useConfirm, ui, INK, FAINT, type Column } from "./ui";
+import { AdminHeader, PencilIcon, TrashIcon, SubIcon, PlusIcon, useConfirm, ui, INK, FAINT } from "./ui";
+import { AdminTable, AdminTableShell, adminTableStyles, statusPill, RowSkeleton, TBL } from "./shared/AdminTable";
 import { apiGet, apiSend } from "../../lib/api";
 import { useToast } from "../../context/Toast";
 
@@ -83,9 +84,14 @@ export default function AdminCategories() {
   const { show } = useToast();
   const confirm = useConfirm();
   const [cats, setCats] = useState<Cat[]>([]);
+  const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<null | { editing?: Cat; parentId?: number | null }>(null);
 
-  const load = () => apiGet<Cat[]>("admin/categories", true).then(setCats).catch((e) => show({ title: e.message, tone: "error" }));
+  const load = () =>
+    apiGet<Cat[]>("admin/categories", true)
+      .then(setCats)
+      .catch((e) => show({ title: e.message, tone: "error" }))
+      .finally(() => setLoading(false));
   useEffect(() => { load(); }, []);
 
   // build display order with depth
@@ -119,41 +125,56 @@ export default function AdminCategories() {
     catch (e: any) { show({ title: e.message, tone: "error" }); }
   };
 
-  type Row = { c: Cat; depth: number };
-  const columns: Column<Row>[] = [
-    {
-      key: "category", header: "Category", width: "minmax(260px, 2.2fr)",
-      render: ({ c, depth }) => (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, paddingLeft: depth * 22 }}>
-          {depth > 0 && <span style={{ color: FAINT }}>└</span>}
-          <div style={{ minWidth: 0 }}>
-            <span style={{ fontSize: 14.5, fontWeight: depth === 0 ? 600 : 500, color: INK }}>{c.name}</span>
-            <span style={{ fontSize: 12, color: FAINT, marginLeft: 10 }}>
-              {c.productCount} {c.productCount === 1 ? "product" : "products"}
-              {c.totalCount != null && c.totalCount > c.productCount && ` · ${c.totalCount} incl. sub`}
-            </span>
-          </div>
-        </div>
-      ),
-    },
-    { key: "status", header: "Status", width: 110, render: ({ c }) => <StatusPill label={c.status} active={c.status === "active"} /> },
-    {
-      key: "actions", header: "", width: 130, align: "right",
-      render: ({ c }) => (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
-          <IconButton icon={<SubIcon />} title="Add sub-category" onClick={() => setModal({ parentId: c.id })} />
-          <IconButton icon={<PencilIcon />} title="Edit" onClick={() => setModal({ editing: c })} />
-          <IconButton icon={<TrashIcon />} title="Delete" onClick={() => remove(c)} />
-        </div>
-      ),
-    },
-  ];
-
   return (
     <div>
+      <style>{adminTableStyles}</style>
       <AdminHeader eyebrow="CATALOG" title="Categories" action={<button onClick={() => setModal({ parentId: null })} style={{ ...ui.primaryBtn, display: "inline-flex", alignItems: "center", gap: 7 }}><PlusIcon size={15} /> New category</button>} />
 
-      <DataTable columns={columns} rows={ordered} rowKey={(o) => o.c.id} empty="No categories yet — create your first." />
+      <AdminTableShell minWidth={640} maxHeight="calc(100vh - 280px)" minHeight={260}>
+        <AdminTable>
+          <thead>
+            <tr>
+              <th>Category</th>
+              <th style={{ width: 110 }}>Status</th>
+              <th className="admin-pin-right" style={{ width: 130, textAlign: "right" }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <RowSkeleton key={i} widths={["55%", 60, 70]} />
+              ))
+            ) : ordered.length === 0 ? (
+              <tr><td colSpan={3} style={{ textAlign: "center", padding: 32, color: TBL.textMuted }}>No categories yet — create your first.</td></tr>
+            ) : (
+              ordered.map(({ c, depth }) => (
+                <tr key={c.id} className="admin-tbl-row">
+                  <td>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, paddingLeft: depth * 22 }}>
+                      {depth > 0 && <span style={{ color: FAINT }}>└</span>}
+                      <div style={{ minWidth: 0 }}>
+                        <span style={{ fontSize: 14.5, fontWeight: depth === 0 ? 600 : 500, color: INK }}>{c.name}</span>
+                        <span style={{ fontSize: 12, color: FAINT, marginLeft: 10 }}>
+                          {c.productCount} {c.productCount === 1 ? "product" : "products"}
+                          {c.totalCount != null && c.totalCount > c.productCount && ` · ${c.totalCount} incl. sub`}
+                        </span>
+                      </div>
+                    </div>
+                  </td>
+                  <td>{statusPill(c.status)}</td>
+                  <td className="admin-pin-right" style={{ textAlign: "right" }}>
+                    <div style={{ display: "inline-flex", gap: 6 }}>
+                      <button className="admin-act-btn" title="Add sub-category" aria-label="Add sub-category" onClick={() => setModal({ parentId: c.id })}><SubIcon /></button>
+                      <button className="admin-act-btn" title="Edit" aria-label="Edit" onClick={() => setModal({ editing: c })}><PencilIcon /></button>
+                      <button className="admin-act-btn del" title="Delete" aria-label="Delete" onClick={() => remove(c)}><TrashIcon /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </AdminTable>
+      </AdminTableShell>
 
       <AnimatePresence>
         {modal && <CategoryModal cats={cats} initial={modal.editing} onClose={() => setModal(null)} onSave={save} />}

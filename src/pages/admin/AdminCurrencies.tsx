@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { TEXT_COLOR } from "../../lib/constants";
-import { INK, MUTED, FAINT, LINE } from "./ui";
+import { INK, MUTED, FAINT } from "./ui";
 import { apiGet, apiSend } from "../../lib/api";
 import { useToast } from "../../context/Toast";
 import type { StoreCurrency } from "../../context/Currency";
+import { AdminTable, AdminTableShell, adminTableStyles, TBL, Pill, RowSkeleton } from "./shared/AdminTable";
 
 type Draft = {
   code: string;
@@ -26,11 +27,6 @@ const BLANK: Draft = {
   isActive: true,
 };
 
-const card: React.CSSProperties = {
-  background: "#fff",
-  border: "1px solid rgba(20,20,20,0.1)",
-  borderRadius: 16,
-};
 const inputS: React.CSSProperties = {
   width: "100%",
   background: "#f5f5f4",
@@ -241,6 +237,7 @@ export default function AdminCurrencies() {
 
   return (
     <div>
+      <style>{adminTableStyles}</style>
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap", marginBottom: 22 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-1.2px", color: TEXT_COLOR, margin: 0 }}>Currencies</h1>
@@ -256,96 +253,77 @@ export default function AdminCurrencies() {
         </button>
       </div>
 
-      <div style={{ ...card, overflow: "hidden" }}>
-        {loading ? (
-          <div style={{ padding: 32, fontSize: 13.5, color: FAINT }}>Loading…</div>
-        ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'Inter Tight', sans-serif" }}>
-              <thead>
-                <tr>
-                  {["Code", "Name", "Name (AR)", "Symbol", "Rate", "Status", "Base", ""].map((h, i) => (
-                    <th
-                      key={h + i}
-                      style={{
-                        textAlign: i >= 4 && i <= 6 ? "center" : "left",
-                        padding: "13px 18px",
-                        fontSize: 11,
-                        fontWeight: 600,
-                        letterSpacing: "1.4px",
-                        textTransform: "uppercase",
-                        color: "rgba(20,20,20,0.5)",
-                        borderBottom: `1px solid ${LINE}`,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((c) => (
-                  <tr key={c.id}>
-                    <td style={{ padding: "14px 18px", fontSize: 13.5, fontWeight: 700, color: TEXT_COLOR, borderBottom: `1px solid ${LINE}` }}>{c.code}</td>
-                    <td style={{ padding: "14px 18px", fontSize: 13.5, color: TEXT_COLOR, borderBottom: `1px solid ${LINE}` }}>{c.nameEn}</td>
-                    <td dir="rtl" style={{ padding: "14px 18px", fontSize: 13.5, color: MUTED, borderBottom: `1px solid ${LINE}` }}>{c.nameAr || "—"}</td>
-                    <td style={{ padding: "14px 18px", fontSize: 13.5, color: TEXT_COLOR, borderBottom: `1px solid ${LINE}` }}>{c.symbol}</td>
-                    <td style={{ padding: "14px 18px", fontSize: 13.5, fontWeight: 600, color: TEXT_COLOR, borderBottom: `1px solid ${LINE}`, textAlign: "center", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
-                      {c.rate.toLocaleString("en-US", { maximumFractionDigits: 6 })}
-                    </td>
-                    <td style={{ padding: "14px 18px", borderBottom: `1px solid ${LINE}`, textAlign: "center" }}>
-                      <span
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 6,
-                          fontSize: 11.5,
-                          fontWeight: 600,
-                          padding: "4px 10px",
-                          borderRadius: 999,
-                          background: c.isActive ? "rgba(31,138,93,0.12)" : "rgba(20,20,20,0.08)",
-                          color: c.isActive ? "#1f8a5d" : "rgba(20,20,20,0.55)",
-                        }}
-                      >
-                        <span style={{ width: 5, height: 5, borderRadius: 999, background: "currentColor" }} />
-                        {c.isActive ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                    <td style={{ padding: "14px 18px", borderBottom: `1px solid ${LINE}`, textAlign: "center", whiteSpace: "nowrap" }}>
-                      {c.isBase ? (
-                        <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: "1px", color: TEXT_COLOR }}>BASE</span>
-                      ) : (
-                        <button
-                          onClick={() => setBase(c)}
-                          style={{ background: "none", border: "1px solid rgba(20,20,20,0.25)", borderRadius: 999, padding: "6px 13px", cursor: "pointer", fontFamily: "'Inter Tight', sans-serif", fontSize: 12, fontWeight: 500, color: TEXT_COLOR }}
-                        >
-                          Set as base
-                        </button>
-                      )}
-                    </td>
-                    <td style={{ padding: "14px 18px", borderBottom: `1px solid ${LINE}`, textAlign: "right", whiteSpace: "nowrap" }}>
+      <AdminTableShell minWidth={900} maxHeight="calc(100vh - 280px)" minHeight={260}>
+        <AdminTable>
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Name</th>
+              <th>Name (AR)</th>
+              <th>Symbol</th>
+              <th style={{ textAlign: "center" }}>Rate</th>
+              <th style={{ textAlign: "center" }}>Status</th>
+              <th style={{ textAlign: "center" }}>Base</th>
+              <th className="admin-pin-right" style={{ width: 96, textAlign: "right" }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <RowSkeleton key={i} widths={[40, "60%", 80, 30, 60, 70, 70, 40]} />
+              ))
+            ) : rows.length === 0 ? (
+              <tr><td colSpan={8} style={{ textAlign: "center", padding: 32, color: TBL.textMuted }}>No currencies yet.</td></tr>
+            ) : (
+              rows.map((c) => (
+                <tr key={c.id} className="admin-tbl-row">
+                  <td style={{ fontWeight: 700 }}>{c.code}</td>
+                  <td>{c.nameEn}</td>
+                  <td dir="rtl" style={{ color: TBL.textSub }}>{c.nameAr || "—"}</td>
+                  <td>{c.symbol}</td>
+                  <td style={{ textAlign: "center", fontWeight: 600, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
+                    {c.rate.toLocaleString("en-US", { maximumFractionDigits: 6 })}
+                  </td>
+                  <td style={{ textAlign: "center" }}>
+                    {c.isActive
+                      ? <Pill label="Active" color="#166534" bg={TBL.greenBg} border={TBL.greenBorder} />
+                      : <Pill label="Inactive" color="#6b7280" bg="#f9fafb" border="#e5e7eb" />}
+                  </td>
+                  <td style={{ textAlign: "center", whiteSpace: "nowrap" }}>
+                    {c.isBase ? (
+                      <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: "1px", color: TEXT_COLOR }}>BASE</span>
+                    ) : (
                       <button
-                        onClick={() => setModal({ editing: c })}
-                        style={{ background: "none", border: "none", cursor: "pointer", fontFamily: "'Inter Tight', sans-serif", fontSize: 12.5, fontWeight: 500, color: TEXT_COLOR, textDecoration: "underline", textUnderlineOffset: 3, marginRight: 14 }}
+                        onClick={() => setBase(c)}
+                        style={{ background: "none", border: "1px solid rgba(20,20,20,0.25)", borderRadius: 999, padding: "6px 13px", cursor: "pointer", fontFamily: "'Inter Tight', sans-serif", fontSize: 12, fontWeight: 500, color: TEXT_COLOR }}
                       >
-                        Edit
+                        Set as base
+                      </button>
+                    )}
+                  </td>
+                  <td className="admin-pin-right" style={{ textAlign: "right" }}>
+                    <div style={{ display: "inline-flex", gap: 6 }}>
+                      <button className="admin-act-btn" title="Edit" aria-label={`Edit ${c.code}`} onClick={() => setModal({ editing: c })}>
+                        <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.83 2.83 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3Z" /></svg>
                       </button>
                       <button
-                        onClick={() => remove(c)}
+                        className="admin-act-btn del"
+                        title="Delete"
+                        aria-label={`Delete ${c.code}`}
                         disabled={c.isBase}
-                        style={{ background: "none", border: "none", cursor: c.isBase ? "default" : "pointer", fontFamily: "'Inter Tight', sans-serif", fontSize: 12.5, fontWeight: 500, color: c.isBase ? "rgba(20,20,20,0.3)" : "#b0402a", textDecoration: c.isBase ? "none" : "underline", textUnderlineOffset: 3 }}
+                        style={c.isBase ? { opacity: 0.3, cursor: "default" } : undefined}
+                        onClick={() => remove(c)}
                       >
-                        Delete
+                        <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /></svg>
                       </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </AdminTable>
+      </AdminTableShell>
 
       {modal && <CurrencyModal initial={modal.editing} onClose={() => setModal(null)} onSaved={reload} />}
     </div>

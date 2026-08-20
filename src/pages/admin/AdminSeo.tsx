@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { TEXT_COLOR } from "../../lib/constants";
 import { apiGet, apiSend } from "../../lib/api";
 import { useToast } from "../../context/Toast";
-import { AdminHeader, ui, useConfirm, MUTED } from "./ui";
+import { AdminHeader, ui, useConfirm } from "./ui";
+import { AdminTable, AdminTableShell, adminTableStyles, TBL, RowSkeleton } from "./shared/AdminTable";
 
 export default function AdminSeo() {
   const { show } = useToast();
@@ -11,11 +12,12 @@ export default function AdminSeo() {
   const [redirects, setRedirects] = useState<any[]>([]);
   const [pages, setPages] = useState<any[]>([]);
   const [rd, setRd] = useState({ from: "", to: "", code: "301" });
+  const [loading, setLoading] = useState(true);
 
   const load = () => apiGet<any>("admin/seo", true).then((d) => {
     setSeo(d.seo || {}); setRedirects(d.redirects || []); setPages(d.pages || []);
   }).catch((e) => show({ title: e.message, tone: "error" }));
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load().finally(() => setLoading(false)); }, []);
 
   const saveSeo = async () => { try { await apiSend("PUT", "admin/seo", { seo }); show({ title: "SEO defaults saved", tone: "success" }); } catch (e: any) { show({ title: e.message, tone: "error" }); } };
   const addRedirect = async () => {
@@ -27,6 +29,7 @@ export default function AdminSeo() {
 
   return (
     <div style={{ maxWidth: 760 }}>
+      <style>{adminTableStyles}</style>
       <AdminHeader eyebrow="DISCOVERABILITY" title="SEO Settings" />
 
       <div style={{ ...ui.card, marginBottom: 18 }}>
@@ -48,14 +51,39 @@ export default function AdminSeo() {
           <select value={rd.code} onChange={(e) => setRd({ ...rd, code: e.target.value })} style={{ ...ui.input, width: 90 }}><option value="301">301</option><option value="302">302</option></select>
           <button onClick={addRedirect} style={ui.primaryBtn}>Add</button>
         </div>
-        {redirects.map((r) => (
-          <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderTop: "1px solid rgba(84,84,84,0.08)", fontSize: 13, color: TEXT_COLOR }}>
-            <span style={{ flex: 1 }}>{r.from_path} → {r.to_path}</span>
-            <span style={{ color: "rgba(84,84,84,0.5)" }}>{r.code}</span>
-            <button onClick={async () => { if (!(await confirm({ title: "Remove redirect?", message: `${r.from_path} → ${r.to_path} will no longer redirect. This can’t be undone.`, confirmLabel: "Remove redirect" }))) return; await apiSend("DELETE", `admin/seo/redirects/${r.id}`); load(); }} style={{ ...ui.linkBtn, color: MUTED }}>Remove</button>
-          </div>
-        ))}
-        {redirects.length === 0 && <div style={{ fontSize: 13, color: "rgba(84,84,84,0.5)" }}>No redirects.</div>}
+        <AdminTableShell minWidth={560} maxHeight="50vh" mobileMaxHeight="50vh" minHeight={160} mobileMinHeight={160}>
+          <AdminTable>
+            <thead>
+              <tr>
+                <th>From</th>
+                <th>To</th>
+                <th style={{ width: 70 }}>Code</th>
+                <th className="admin-pin-right" style={{ width: 80, textAlign: "right" }}>Remove</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                Array.from({ length: 6 }).map((_, i) => <RowSkeleton key={i} widths={["70%", "70%", 30, 20]} />)
+              ) : redirects.length === 0 ? (
+                <tr><td colSpan={4} style={{ textAlign: "center", padding: 32, color: TBL.textMuted }}>No redirects.</td></tr>
+              ) : (
+                redirects.map((r) => (
+                  <tr key={r.id} className="admin-tbl-row">
+                    <td>{r.from_path}</td>
+                    <td>{r.to_path}</td>
+                    <td style={{ color: TBL.textSub }}>{r.code}</td>
+                    <td className="admin-pin-right" style={{ textAlign: "right" }}>
+                      <button className="admin-act-btn del" title="Remove redirect" aria-label={`Remove redirect ${r.from_path}`}
+                        onClick={async () => { if (!(await confirm({ title: "Remove redirect?", message: `${r.from_path} → ${r.to_path} will no longer redirect. This can’t be undone.`, confirmLabel: "Remove redirect" }))) return; await apiSend("DELETE", `admin/seo/redirects/${r.id}`); load(); }}>
+                        <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /></svg>
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </AdminTable>
+        </AdminTableShell>
       </div>
 
       <div style={ui.card}>

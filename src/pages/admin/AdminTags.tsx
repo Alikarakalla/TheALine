@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import { apiGet, apiSend } from "../../lib/api";
 import { useToast } from "../../context/Toast";
-import { AdminHeader, DataTable, Modal, IconButton, PencilIcon, TrashIcon, PlusIcon, useConfirm, ui, INK, MUTED, type Column } from "./ui";
+import { AdminHeader, Modal, PencilIcon, TrashIcon, PlusIcon, useConfirm, ui, INK } from "./ui";
+import { AdminTable, AdminTableShell, adminTableStyles, TBL, RowSkeleton } from "./shared/AdminTable";
 
 type Tag = { id: number; name: string; slug: string; color: string | null; productCount: number };
 
@@ -64,26 +65,46 @@ export default function AdminTags() {
     catch (e: any) { show({ title: e.message, tone: "error" }); setBusy(null); }
   };
 
-  const columns: Column<Tag>[] = [
-    { key: "tag", header: "Tag", width: "minmax(180px, 1.6fr)", render: (t) => <TagBadge name={t.name} color={t.color} /> },
-    { key: "slug", header: "Slug", width: "1fr", render: (t) => <span style={{ fontSize: 13, color: MUTED }}>{t.slug}</span> },
-    { key: "count", header: "Products", width: 110, render: (t) => <span style={{ fontSize: 13, color: MUTED }}>{t.productCount}</span> },
-    {
-      key: "actions", header: "", width: 96, align: "right",
-      render: (t) => (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
-          <IconButton icon={<PencilIcon />} title="Edit" onClick={() => openEdit(t)} />
-          <IconButton icon={<TrashIcon />} title="Delete" onClick={() => remove(t)} />
-        </div>
-      ),
-    },
-  ];
-
   return (
     <div>
+      <style>{adminTableStyles}</style>
       <AdminHeader eyebrow="CATALOG" title="Tags" action={<button onClick={openNew} style={{ ...ui.primaryBtn, display: "inline-flex", alignItems: "center", gap: 7 }}><PlusIcon size={15} /> New tag</button>} />
 
-      <DataTable columns={columns} rows={list} rowKey={(t) => t.id} loading={loading} busyKey={busy} empty="No tags yet — add your first." />
+      <AdminTableShell minWidth={600} maxHeight="calc(100vh - 280px)" minHeight={260}>
+        <AdminTable>
+          <thead>
+            <tr>
+              <th>Tag</th>
+              <th>Slug</th>
+              <th>Products</th>
+              <th className="admin-pin-right" style={{ width: 96, textAlign: "right" }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <RowSkeleton key={i} widths={[90, 130, 40, 55]} />
+              ))
+            ) : list.length === 0 ? (
+              <tr><td colSpan={4} style={{ textAlign: "center", padding: 32, color: TBL.textMuted }}>No tags yet — add your first.</td></tr>
+            ) : (
+              list.map((t) => (
+                <tr key={t.id} className="admin-tbl-row" style={{ opacity: busy === t.id ? 0.45 : 1 }}>
+                  <td><TagBadge name={t.name} color={t.color} /></td>
+                  <td style={{ fontFamily: TBL.mono, color: TBL.textSub }}>{t.slug}</td>
+                  <td style={{ color: TBL.textSub }}>{t.productCount}</td>
+                  <td className="admin-pin-right" style={{ textAlign: "right" }}>
+                    <div style={{ display: "inline-flex", gap: 6 }}>
+                      <button className="admin-act-btn" title="Edit" onClick={() => openEdit(t)}><PencilIcon /></button>
+                      <button className="admin-act-btn del" title="Delete" onClick={() => remove(t)}><TrashIcon /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </AdminTable>
+      </AdminTableShell>
 
       <AnimatePresence>
         {modal && (

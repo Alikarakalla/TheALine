@@ -4,9 +4,12 @@ import { apiGet, apiSend, apiUpload } from "../../lib/api";
 import { useToast } from "../../context/Toast";
 import { useBaseMoney } from "../../context/Currency";
 import {
-  AdminHeader, DataTable, Drawer, StatusPill, IconButton,
-  PencilIcon, TrashIcon, PlusIcon, useConfirm, ui, INK, MUTED, FAINT, type Column,
+  AdminHeader, Drawer, IconButton,
+  PencilIcon, TrashIcon, PlusIcon, useConfirm, ui, INK, MUTED, FAINT,
 } from "./ui";
+import {
+  AdminTable, AdminTableShell, adminTableStyles, TBL, statusPill, RowSkeleton,
+} from "./shared/AdminTable";
 
 type Rule = { field: string; op: string; value: string };
 type Collection = {
@@ -164,34 +167,6 @@ export default function AdminCollections() {
   const addRule = () => setForm((f) => ({ ...f, rules: [...f.rules, { field: "category", op: "eq", value: "" }] }));
   const removeRule = (i: number) => setForm((f) => ({ ...f, rules: f.rules.filter((_, j) => j !== i) }));
 
-  const columns: Column<Collection>[] = [
-    {
-      key: "collection", header: "Collection", width: "minmax(240px, 2fr)",
-      render: (c) => (
-        <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
-          <div style={{ width: 44, height: 44, borderRadius: 10, background: "#efefee", flexShrink: 0, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            {c.image ? <img src={c.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ color: FAINT, fontSize: 16 }}>◇</span>}
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 15, fontWeight: 600, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.title}</div>
-            <div style={{ fontSize: 12.5, color: MUTED }}>{c.type === "smart" ? "Smart" : "Manual"} · /{c.slug}</div>
-          </div>
-        </div>
-      ),
-    },
-    { key: "count", header: "Products", width: 110, render: (c) => <span style={{ fontSize: 13, color: MUTED }}>{c.productCount}</span> },
-    { key: "status", header: "Status", width: 120, render: (c) => <StatusPill label={c.status} active={c.status === "active"} onClick={() => toggleStatus(c)} title="Toggle active / hidden" /> },
-    {
-      key: "actions", header: "", width: 96, align: "right",
-      render: (c) => (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
-          <IconButton icon={<PencilIcon />} title="Edit" onClick={() => openEdit(c)} />
-          <IconButton icon={<TrashIcon />} title="Delete" onClick={() => remove(c)} />
-        </div>
-      ),
-    },
-  ];
-
   const seg = (active: boolean): React.CSSProperties => ({
     flex: 1, padding: "9px 0", borderRadius: 9, border: "none", cursor: "pointer", fontFamily: "'Inter Tight', sans-serif",
     fontSize: 13.5, fontWeight: 600, background: active ? INK : "transparent", color: active ? "#fff" : MUTED, transition: "background .15s, color .15s",
@@ -199,13 +174,62 @@ export default function AdminCollections() {
 
   return (
     <div>
+      <style>{adminTableStyles}</style>
       <AdminHeader
         eyebrow="MERCHANDISING"
         title="Collections"
         action={<button onClick={openNew} style={{ ...ui.primaryBtn, display: "inline-flex", alignItems: "center", gap: 7 }}><PlusIcon size={15} /> New collection</button>}
       />
 
-      <DataTable columns={columns} rows={list} rowKey={(c) => c.id} loading={loading} busyKey={busy} empty="No collections yet — create your first." />
+      <AdminTableShell minWidth={700} maxHeight="calc(100vh - 280px)" minHeight={260}>
+        <AdminTable>
+          <thead>
+            <tr>
+              <th>Collection</th>
+              <th style={{ width: 110 }}>Products</th>
+              <th style={{ width: 120 }}>Status</th>
+              <th className="admin-pin-right" style={{ width: 96, textAlign: "right" }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <RowSkeleton key={i} widths={["55%", 40, 70, 60]} />
+              ))
+            ) : list.length === 0 ? (
+              <tr><td colSpan={4} style={{ textAlign: "center", padding: 32, color: TBL.textMuted }}>No collections yet — create your first.</td></tr>
+            ) : (
+              list.map((c) => (
+                <tr key={c.id} className="admin-tbl-row" style={{ opacity: busy === c.id ? 0.45 : 1 }}>
+                  <td>
+                    <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+                      <div style={{ width: 44, height: 44, borderRadius: 10, background: "#efefee", flexShrink: 0, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        {c.image ? <img src={c.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ color: FAINT, fontSize: 16 }}>◇</span>}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.title}</div>
+                        <div style={{ fontSize: 11, color: MUTED }}>{c.type === "smart" ? "Smart" : "Manual"} · /{c.slug}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td><span style={{ color: MUTED }}>{c.productCount}</span></td>
+                  <td>
+                    <button onClick={() => toggleStatus(c)} title="Toggle active / hidden" style={{ background: "none", border: 0, padding: 0, cursor: "pointer" }}>
+                      {statusPill(c.status)}
+                    </button>
+                  </td>
+                  <td className="admin-pin-right" style={{ textAlign: "right" }}>
+                    <div style={{ display: "inline-flex", gap: 6 }}>
+                      <button className="admin-act-btn" title="Edit" aria-label={`Edit ${c.title}`} onClick={() => openEdit(c)}><PencilIcon /></button>
+                      <button className="admin-act-btn del" title="Delete" aria-label={`Delete ${c.title}`} onClick={() => remove(c)}><TrashIcon /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </AdminTable>
+      </AdminTableShell>
 
       <AnimatePresence>
         {modal && (

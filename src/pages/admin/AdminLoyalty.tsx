@@ -6,6 +6,7 @@ import { apiGet, apiSend } from "../../lib/api";
 import { useToast } from "../../context/Toast";
 import { AdminHeader, Modal, ui, useConfirm, MUTED } from "./ui";
 import { Field, AuthButton } from "../../components/AuthUI";
+import { AdminTable, AdminTableShell, adminTableStyles, TBL, RowSkeleton } from "./shared/AdminTable";
 
 import { useBaseCurrency, useBaseMoney } from "../../context/Currency";
 
@@ -21,11 +22,12 @@ export default function AdminLoyalty() {
   const [members, setMembers] = useState<any[]>([]);
   const [rewardModal, setRewardModal] = useState<null | { editing?: any }>(null);
   const [rf, setRf] = useState({ label: "", description: "", cost: 0, kind: "discount", value: "" });
+  const [loading, setLoading] = useState(true);
 
   const loadTiers = () => apiGet<any[]>("admin/loyalty/tiers", true).then(setTiers);
   const loadRewards = () => apiGet<any[]>("admin/loyalty/rewards", true).then(setRewards);
   const loadMembers = () => apiGet<any[]>("admin/loyalty/accounts", true).then(setMembers);
-  useEffect(() => { loadTiers(); loadRewards(); loadMembers(); }, []);
+  useEffect(() => { Promise.all([loadTiers(), loadRewards(), loadMembers()]).finally(() => setLoading(false)); }, []);
 
   const saveTier = async (t: any) => {
     try {
@@ -54,6 +56,7 @@ export default function AdminLoyalty() {
 
   return (
     <div>
+      <style>{adminTableStyles}</style>
       <AdminHeader eyebrow="LOVEBAG CIRCLE" title="Loyalty" />
       <div style={{ display: "flex", gap: 6, marginBottom: 22 }}>{tabBtn("tiers", "Tiers")}{tabBtn("rewards", "Rewards")}{tabBtn("members", `Members (${members.length})`)}</div>
 
@@ -79,36 +82,73 @@ export default function AdminLoyalty() {
       {tab === "rewards" && (
         <div>
           <button onClick={() => { setRf({ label: "", description: "", cost: 0, kind: "discount", value: "" }); setRewardModal({}); }} style={{ ...ui.primaryBtn, marginBottom: 16 }}>+ New reward</button>
-          <div style={ui.panel}>
-            {rewards.map((r, i) => (
-              <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", borderTop: i === 0 ? "none" : "1px solid rgba(84,84,84,0.07)" }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14.5, fontWeight: 600, color: TEXT_COLOR }}>{r.label}</div>
-                  <div style={{ fontSize: 12.5, color: "rgba(84,84,84,0.55)" }}>{r.description} · {r.kind}</div>
-                </div>
-                <span style={{ fontSize: 13.5, fontWeight: 600, color: TEXT_COLOR }}>{r.cost} pts</span>
-                <button onClick={() => { setRf({ label: r.label, description: r.description || "", cost: r.cost, kind: r.kind, value: r.value ?? "" }); setRewardModal({ editing: r }); }} style={ui.linkBtn}>Edit</button>
-                <button onClick={async () => { if (!(await confirm({ title: `Delete “${r.label}”?`, message: "This reward is removed from the catalog. This can’t be undone.", confirmLabel: "Delete reward" }))) return; await apiSend("DELETE", `admin/loyalty/rewards/${r.id}`); loadRewards(); }} style={{ ...ui.linkBtn, color: MUTED }}>Delete</button>
-              </div>
-            ))}
-          </div>
+          <AdminTableShell minWidth={620} maxHeight="60vh" mobileMaxHeight="60vh" minHeight={200} mobileMinHeight={200}>
+            <AdminTable>
+              <thead>
+                <tr>
+                  <th>Reward</th>
+                  <th style={{ width: 90 }}>Cost</th>
+                  <th className="admin-pin-right" style={{ width: 110, textAlign: "right" }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  Array.from({ length: 6 }).map((_, i) => <RowSkeleton key={i} widths={["65%", 50, 80]} />)
+                ) : rewards.length === 0 ? (
+                  <tr><td colSpan={3} style={{ textAlign: "center", padding: 32, color: TBL.textMuted }}>No rewards yet</td></tr>
+                ) : (
+                  rewards.map((r) => (
+                    <tr key={r.id} className="admin-tbl-row">
+                      <td>
+                        <div style={{ fontWeight: 600, fontSize: 12 }}>{r.label}</div>
+                        <div style={{ fontSize: 10.5, color: TBL.textSub, marginTop: 2 }}>{r.description} · {r.kind}</div>
+                      </td>
+                      <td style={{ fontWeight: 600 }}>{r.cost} pts</td>
+                      <td className="admin-pin-right" style={{ textAlign: "right" }}>
+                        <div style={{ display: "inline-flex", gap: 10 }}>
+                          <button onClick={() => { setRf({ label: r.label, description: r.description || "", cost: r.cost, kind: r.kind, value: r.value ?? "" }); setRewardModal({ editing: r }); }} style={ui.linkBtn}>Edit</button>
+                          <button onClick={async () => { if (!(await confirm({ title: `Delete “${r.label}”?`, message: "This reward is removed from the catalog. This can’t be undone.", confirmLabel: "Delete reward" }))) return; await apiSend("DELETE", `admin/loyalty/rewards/${r.id}`); loadRewards(); }} style={{ ...ui.linkBtn, color: MUTED }}>Delete</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </AdminTable>
+          </AdminTableShell>
         </div>
       )}
 
       {tab === "members" && (
-        <div style={ui.panel}>
-          {members.map((m, i) => (
-            <div key={m.email} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", borderTop: i === 0 ? "none" : "1px solid rgba(84,84,84,0.07)" }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: TEXT_COLOR }}>{m.name}</div>
-                <div style={{ fontSize: 12.5, color: "rgba(84,84,84,0.55)" }}>{m.email} · {m.referralCode}</div>
-              </div>
-              <span style={{ fontSize: 13, color: "rgba(84,84,84,0.6)" }}>{money(m.lifetimeSpend)} lifetime</span>
-              <span style={{ fontSize: 15, fontWeight: 700, color: "#7e9400" }}>{m.points} pts</span>
-            </div>
-          ))}
-          {members.length === 0 && <div style={{ padding: 40, textAlign: "center", color: "rgba(84,84,84,0.5)" }}>No members yet</div>}
-        </div>
+        <AdminTableShell minWidth={620} maxHeight="60vh" mobileMaxHeight="60vh" minHeight={200} mobileMinHeight={200}>
+          <AdminTable>
+            <thead>
+              <tr>
+                <th>Member</th>
+                <th style={{ width: 130 }}>Lifetime</th>
+                <th style={{ width: 90 }}>Points</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                Array.from({ length: 6 }).map((_, i) => <RowSkeleton key={i} widths={["60%", 70, 40]} />)
+              ) : members.length === 0 ? (
+                <tr><td colSpan={3} style={{ textAlign: "center", padding: 32, color: TBL.textMuted }}>No members yet</td></tr>
+              ) : (
+                members.map((m) => (
+                  <tr key={m.email} className="admin-tbl-row">
+                    <td>
+                      <div style={{ fontWeight: 600, fontSize: 12 }}>{m.name}</div>
+                      <div style={{ fontSize: 10.5, color: TBL.textSub, marginTop: 2 }}>{m.email} · {m.referralCode}</div>
+                    </td>
+                    <td style={{ color: TBL.textSub }}>{money(m.lifetimeSpend)}</td>
+                    <td style={{ fontWeight: 700, color: "#7e9400" }}>{m.points} pts</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </AdminTable>
+        </AdminTableShell>
       )}
 
       <AnimatePresence>

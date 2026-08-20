@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { TEXT_COLOR } from "../../lib/constants";
-import { AdminHeader, DataTable, StatusPill, IconButton, ChevronRightIcon, INK, MUTED, type Column } from "./ui";
+import { AdminHeader, ChevronRightIcon, INK, MUTED } from "./ui";
+import { AdminTable, AdminTableShell, adminTableStyles, TBL, Pill, statusPill, RowSkeleton } from "./shared/AdminTable";
 import { apiGet, apiSend } from "../../lib/api";
 import { useToast } from "../../context/Toast";
 
@@ -30,37 +31,67 @@ export default function AdminCustomers() {
     catch (e: any) { show({ title: e.message, tone: "error" }); }
   };
 
-  const columns: Column<any>[] = [
-    {
-      key: "customer", header: "Customer", width: "minmax(240px, 2fr)",
-      render: (c) => (
-        <button onClick={() => open(c.id)} style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left", fontFamily: "'Inter Tight', sans-serif" }}>
-          <div style={{ width: 38, height: 38, borderRadius: "50%", background: INK, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "#fff", flexShrink: 0 }}>
-            {(c.name || c.email)[0]?.toUpperCase()}
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name || "—"}</div>
-            <div style={{ fontSize: 12.5, color: MUTED, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.email}</div>
-          </div>
-        </button>
-      ),
-    },
-    { key: "orders", header: "Orders", width: 90, render: (c) => <span style={{ fontSize: 13, color: MUTED }}>{c.ordersCount}</span> },
-    { key: "spent", header: "Spent", width: 110, render: (c) => <span style={{ fontSize: 14, fontWeight: 600, color: INK }}>{money(c.totalSpent)}</span> },
-    { key: "status", header: "Status", width: 120, render: (c) => <StatusPill label={c.status} active={c.status === "active"} onClick={() => toggleBlock(c)} title="Toggle blocked / active" /> },
-    { key: "view", header: "", width: 48, align: "right", render: (c) => <IconButton icon={<ChevronRightIcon />} title="View customer" onClick={() => open(c.id)} /> },
-  ];
-
   return (
     <div>
+      <style>{adminTableStyles}</style>
       <AdminHeader
         eyebrow="PEOPLE"
         title="Customers"
         action={<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" style={{ background: "#fff", border: `1px solid ${INK}1f`, borderRadius: 999, padding: "9px 18px", fontFamily: "'Inter Tight', sans-serif", fontSize: 13, color: INK, outline: "none" }} />}
       />
 
-      <DataTable columns={columns} rows={list} rowKey={(c) => c.id} loading={loading} empty="No customers found." />
-
+      <AdminTableShell minWidth={760} maxHeight="calc(100vh - 320px)" minHeight={260}>
+        <AdminTable>
+          <thead>
+            <tr>
+              <th>Customer</th>
+              <th style={{ width: 90 }}>Orders</th>
+              <th style={{ width: 110 }}>Spent</th>
+              <th style={{ width: 120 }}>Status</th>
+              <th className="admin-pin-right" style={{ width: 48, textAlign: "right" }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <RowSkeleton key={i} widths={["60%", 30, 60, 70, 20]} />
+              ))
+            ) : list.length === 0 ? (
+              <tr><td colSpan={5} style={{ textAlign: "center", padding: 32, color: TBL.textMuted }}>No customers found.</td></tr>
+            ) : (
+              list.map((c) => (
+                <tr key={c.id} className="admin-tbl-row">
+                  <td>
+                    <button onClick={() => open(c.id)} style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left", fontFamily: "'Inter Tight', sans-serif" }}>
+                      <div style={{ width: 38, height: 38, borderRadius: "50%", background: INK, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "#fff", flexShrink: 0 }}>
+                        {(c.name || c.email)[0]?.toUpperCase()}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name || "—"}</div>
+                        <div style={{ fontSize: 12.5, color: MUTED, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.email}</div>
+                      </div>
+                    </button>
+                  </td>
+                  <td style={{ color: TBL.textSub }}>{c.ordersCount}</td>
+                  <td style={{ fontWeight: 600 }}>{money(c.totalSpent)}</td>
+                  <td>
+                    <button onClick={() => toggleBlock(c)} title="Toggle blocked / active" style={{ background: "none", border: 0, padding: 0, cursor: "pointer" }}>
+                      {c.status === "active"
+                        ? statusPill("active")
+                        : <Pill label="Blocked" color="#b42318" bg={TBL.redBg} border={TBL.redBorder} />}
+                    </button>
+                  </td>
+                  <td className="admin-pin-right" style={{ textAlign: "right" }}>
+                    <button className="admin-act-btn" title="View customer" aria-label="View customer" onClick={() => open(c.id)}>
+                      <ChevronRightIcon />
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </AdminTable>
+      </AdminTableShell>
 
       <AnimatePresence>
         {detail && (

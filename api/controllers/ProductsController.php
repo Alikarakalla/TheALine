@@ -91,9 +91,13 @@ class ProductsController
         }
 
         $variants = array_map(function ($v) use ($optByVariant) {
+            // Main image (image_url) first, then the gallery JSON — the new
+            // form stores them separately; legacy rows repeated the main in
+            // the gallery, so de-dupe.
             $imgs = $v['images'] ? json_decode($v['images'], true) : null;
-            if (!is_array($imgs)) $imgs = $v['image_url'] ? [$v['image_url']] : [];
-            $imgs = array_values(array_filter($imgs));
+            if (!is_array($imgs)) $imgs = [];
+            if (!empty($v['image_url'])) array_unshift($imgs, $v['image_url']);
+            $imgs = array_values(array_unique(array_filter($imgs)));
             return [
                 'id' => (int) $v['id'],
                 'sku' => $v['sku'],
@@ -162,9 +166,13 @@ class ProductsController
             'colors' => $vd['colors'],
             'attributes' => $vd['attributes'],
             'variants' => $vd['variants'],
-            // `images` stays a flat URL list for the storefront; `media` carries
-            // alt text for the admin editor.
-            'images' => array_map(fn($im) => $im['url'], $images),
+            // `images` stays a flat URL list for the storefront — the standalone
+            // main image (products.main_image, lebazone-style) leads, then the
+            // gallery; `media` carries alt text for the admin editor.
+            'images' => array_values(array_unique(array_filter([
+                ...(!empty($p['main_image']) ? [$p['main_image']] : []),
+                ...array_map(fn($im) => $im['url'], $images),
+            ]))),
             'media' => array_map(fn($im) => ['url' => $im['url'], 'alt' => $im['alt']], $images),
         ];
         if ($full) {
