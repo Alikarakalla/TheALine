@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   motion,
   AnimatePresence,
@@ -186,15 +186,16 @@ function CartButton({ color }: { color: string }) {
       }}
     >
       <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
+        {/* soft tote: gently rounded body, tall graceful handle */}
         <path
-          d="M5.5 8.5h13l-1 11h-11l-1-11z"
-          strokeWidth="1.6"
+          d="M6.1 9.2h11.8c.5 0 .93.38.98.88l.78 8.1a2.1 2.1 0 0 1-2.09 2.32H6.43a2.1 2.1 0 0 1-2.09-2.32l.78-8.1c.05-.5.48-.88.98-.88Z"
+          strokeWidth="1.5"
           strokeLinejoin="round"
           style={{ stroke: color }}
         />
         <path
-          d="M9 8.5V6.8a3 3 0 0 1 6 0v1.7"
-          strokeWidth="1.6"
+          d="M8.7 9V6.9a3.3 3.3 0 0 1 6.6 0V9"
+          strokeWidth="1.5"
           strokeLinecap="round"
           style={{ stroke: color }}
         />
@@ -252,11 +253,12 @@ function SearchButton({ color }: { color: string }) {
         transition: "opacity 0.2s ease",
       }}
     >
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-        <circle cx="11" cy="11" r="7" strokeWidth="1.6" style={{ stroke: color }} />
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
+        {/* refined lens: smaller ring, longer stem */}
+        <circle cx="10.6" cy="10.6" r="6.1" strokeWidth="1.5" style={{ stroke: color }} />
         <path
-          d="M20 20l-3.5-3.5"
-          strokeWidth="1.6"
+          d="M20.4 20.4 15 15"
+          strokeWidth="1.5"
           strokeLinecap="round"
           style={{ stroke: color }}
         />
@@ -286,11 +288,12 @@ function AccountButton({ color }: { color: string }) {
         transition: "opacity 0.2s ease",
       }}
     >
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-        <circle cx="12" cy="8" r="4" strokeWidth="1.6" style={{ stroke: color }} />
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
+        {/* finer figure: smaller head, open soft shoulders */}
+        <circle cx="12" cy="7.6" r="3.4" strokeWidth="1.5" style={{ stroke: color }} />
         <path
-          d="M4 20c0-3.5 3.6-6 8-6s8 2.5 8 6"
-          strokeWidth="1.6"
+          d="M5.2 19.8c.7-3.7 3.5-5.9 6.8-5.9s6.1 2.2 6.8 5.9"
+          strokeWidth="1.5"
           strokeLinecap="round"
           style={{ stroke: color }}
         />
@@ -316,28 +319,260 @@ function Burger({
       style={{
         background: "none",
         border: "none",
-        padding: 6,
+        padding: "6px 6px 6px 8px",
         cursor: "pointer",
         display: "flex",
         flexDirection: "column",
-        gap: 5,
-        width: 34,
+        alignItems: "flex-end",
+        gap: 6,
+        width: 33,
       }}
     >
+      {/* editorial burger: uneven lines, evening out on hover */}
       {[0, 1].map((i) => (
         <motion.span
           key={i}
-          animate={{ width: hover && i === 1 ? "70%" : "100%" }}
+          animate={{ width: i === 1 ? (hover ? "100%" : "62%") : "100%" }}
           transition={{ duration: 0.3, ease: "easeOut" }}
           style={{
-            height: 1.5,
+            height: 1.4,
             background: color,
             display: "block",
+            borderRadius: 999,
             transition: "background 0.4s ease",
           }}
         />
       ))}
     </button>
+  );
+}
+
+/** Mobile menu body — a calm, structured list: serif primary rows with
+ *  hairlines and drawn chevrons, an accordion for the category tree, and
+ *  collections as quiet chips. Replaces the desktop's editorial spread. */
+function MobileMenuBody({
+  onGo,
+  onCat,
+  onCol,
+}: {
+  onGo: (label: string) => void;
+  onCat: (slug?: string) => void;
+  onCol: (slug: string) => void;
+}) {
+  const { categoryTree, collections } = useCatalog();
+  const { count } = useCart();
+  const [openCat, setOpenCat] = useState<number | null>(null);
+
+  const hairline = "1px solid rgba(58,58,58,0.1)";
+  const microLabel: React.CSSProperties = {
+    fontSize: 10.5,
+    fontWeight: 600,
+    letterSpacing: "2.2px",
+    color: "rgba(84,84,84,0.5)",
+    textTransform: "uppercase",
+  };
+  const Chevron = ({ rotated = false }: { rotated?: boolean }) => (
+    <motion.span
+      animate={{ rotate: rotated ? 90 : 0 }}
+      transition={{ duration: 0.25, ease: "easeOut" }}
+      style={{ display: "inline-flex", color: "rgba(84,84,84,0.45)" }}
+    >
+      <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="m9 5.5 6.5 6.5L9 18.5" />
+      </svg>
+    </motion.span>
+  );
+
+  const primary: { label: string; extra?: string }[] = [
+    { label: "Catalog" },
+    { label: "Favorites" },
+    { label: "Account" },
+    { label: "About" },
+  ];
+
+  const renderChildren = (nodes: CategoryNode[], depth: number): React.ReactNode =>
+    nodes.map((n) => (
+      <div key={n.id}>
+        <button
+          onClick={() => onCat(n.slug)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            width: "100%",
+            minHeight: 42,
+            paddingLeft: 14 + depth * 14,
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            fontFamily: "'Inter Tight', sans-serif",
+            fontSize: 14,
+            color: "rgba(84,84,84,0.8)",
+            textAlign: "left",
+          }}
+        >
+          {n.name}
+          <span style={{ marginLeft: 8, fontSize: 11.5, color: "rgba(84,84,84,0.4)", fontVariantNumeric: "tabular-nums" }}>
+            {n.totalCount || ""}
+          </span>
+        </button>
+        {n.children.length > 0 && renderChildren(n.children, depth + 1)}
+      </div>
+    ));
+
+  return (
+    <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "4px 20px 28px", display: "flex", flexDirection: "column" }}>
+      {/* primary rows */}
+      <nav style={{ display: "flex", flexDirection: "column" }}>
+        {primary.map((item, i) => (
+          <motion.button
+            key={item.label}
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1], delay: 0.3 + i * 0.06 }}
+            onClick={() => onGo(item.label)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              minHeight: 56,
+              background: "none",
+              border: "none",
+              borderBottom: hairline,
+              padding: 0,
+              cursor: "pointer",
+            }}
+          >
+            <span style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", fontSize: 26, color: TEXT_COLOR }}>
+              {item.label}
+            </span>
+            <Chevron />
+          </motion.button>
+        ))}
+        {/* bag row with the live count */}
+        <motion.button
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1], delay: 0.3 + primary.length * 0.06 }}
+          onClick={() => onGo("Cart (0)")}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            minHeight: 56,
+            background: "none",
+            border: "none",
+            borderBottom: hairline,
+            padding: 0,
+            cursor: "pointer",
+          }}
+        >
+          <span style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+            <span style={{ fontFamily: "'Instrument Serif', serif", fontStyle: "italic", fontSize: 26, color: TEXT_COLOR }}>Bag</span>
+            {count > 0 && (
+              <span style={{ minWidth: 20, height: 20, padding: "0 6px", borderRadius: 999, background: "#141414", color: "#fff", fontFamily: "'Inter Tight', sans-serif", fontSize: 11, fontWeight: 600, lineHeight: "20px", textAlign: "center" }}>
+                {count}
+              </span>
+            )}
+          </span>
+          <Chevron />
+        </motion.button>
+      </nav>
+
+      {/* category accordion */}
+      {categoryTree.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1], delay: 0.62 }}
+        >
+          <div style={{ ...microLabel, margin: "26px 0 4px" }}>Shop by category</div>
+          {categoryTree.map((cat) => {
+            const open = openCat === cat.id;
+            const hasKids = cat.children.length > 0;
+            return (
+              <div key={cat.id} style={{ borderBottom: hairline }}>
+                <div style={{ display: "flex", alignItems: "center" }}>
+                  <button
+                    onClick={() => onCat(cat.slug)}
+                    style={{
+                      flex: 1,
+                      display: "flex",
+                      alignItems: "center",
+                      minHeight: 50,
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      cursor: "pointer",
+                      fontFamily: "'Inter Tight', sans-serif",
+                      fontSize: 15,
+                      fontWeight: 500,
+                      color: TEXT_COLOR,
+                      textAlign: "left",
+                    }}
+                  >
+                    {cat.name}
+                  </button>
+                  {hasKids && (
+                    <button
+                      onClick={() => setOpenCat(open ? null : cat.id)}
+                      aria-expanded={open}
+                      aria-label={`${open ? "Collapse" : "Expand"} ${cat.name}`}
+                      style={{ width: 44, height: 50, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "flex-end" }}
+                    >
+                      <Chevron rotated={open} />
+                    </button>
+                  )}
+                </div>
+                <AnimatePresence initial={false}>
+                  {open && hasKids && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                      style={{ overflow: "hidden" }}
+                    >
+                      <div style={{ paddingBottom: 8 }}>{renderChildren(cat.children, 0)}</div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            );
+          })}
+        </motion.div>
+      )}
+
+      {/* collections as chips */}
+      {collections.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1], delay: 0.72 }}
+        >
+          <div style={{ ...microLabel, margin: "26px 0 12px" }}>Collections</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {collections.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => onCol(c.slug)}
+                style={{
+                  border: "1px solid rgba(58,58,58,0.22)",
+                  background: "none",
+                  borderRadius: 999,
+                  padding: "10px 16px",
+                  cursor: "pointer",
+                  fontFamily: "'Inter Tight', sans-serif",
+                  fontSize: 13,
+                  color: TEXT_COLOR,
+                }}
+              >
+                {c.title}
+              </button>
+            ))}
+          </div>
+        </motion.div>
+      )}
+    </div>
   );
 }
 
@@ -432,12 +667,17 @@ function OverlayMenu({ onClose }: { onClose: () => void }) {
           position: "relative",
           zIndex: 3,
           flex: 1,
+          minHeight: 0,
           display: "flex",
-          alignItems: "center",
+          alignItems: isMobile ? "stretch" : "center",
           justifyContent: "space-between",
-          padding: isMobile ? "0 20px" : "0 32px 40px",
+          padding: isMobile ? 0 : "0 32px 40px",
         }}
       >
+        {isMobile ? (
+          <MobileMenuBody onGo={go} onCat={goCat} onCol={goCol} />
+        ) : (
+        <>
         {/* nav words + category tree */}
         <div style={{ display: "flex", flexDirection: "column", gap: 24, minWidth: 0 }}>
           <nav style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -451,7 +691,7 @@ function OverlayMenu({ onClose }: { onClose: () => void }) {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.6 }}
-              style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: isMobile ? "32vh" : 280, overflowY: "auto", paddingRight: 8 }}
+              style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 280, overflowY: "auto", paddingRight: 8 }}
             >
               <div
                 style={{
@@ -512,34 +752,34 @@ function OverlayMenu({ onClose }: { onClose: () => void }) {
         </div>
 
         {/* featured image */}
-        {!isMobile && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, filter: "blur(10px)" }}
-            animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-            transition={{ duration: 0.7, ease: "easeOut", delay: 0.5 }}
-            style={{ position: "relative", marginRight: 60 }}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9, filter: "blur(10px)" }}
+          animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+          transition={{ duration: 0.7, ease: "easeOut", delay: 0.5 }}
+          style={{ position: "relative", marginRight: 60 }}
+        >
+          <img
+            src={asset("baggy-2.png")}
+            alt=""
+            style={{ width: 300, height: "auto", objectFit: "contain" }}
+          />
+          <span
+            style={{
+              position: "absolute",
+              bottom: -10,
+              left: "50%",
+              transform: "translateX(-50%)",
+              fontFamily: "'Instrument Serif', serif",
+              fontStyle: "italic",
+              fontSize: 22,
+              color: GLOW_COLOR,
+              whiteSpace: "nowrap",
+            }}
           >
-            <img
-              src={asset("baggy-2.png")}
-              alt=""
-              style={{ width: 300, height: "auto", objectFit: "contain" }}
-            />
-            <span
-              style={{
-                position: "absolute",
-                bottom: -10,
-                left: "50%",
-                transform: "translateX(-50%)",
-                fontFamily: "'Instrument Serif', serif",
-                fontStyle: "italic",
-                fontSize: 22,
-                color: GLOW_COLOR,
-                whiteSpace: "nowrap",
-              }}
-            >
-              this season
-            </span>
-          </motion.div>
+            this season
+          </span>
+        </motion.div>
+        </>
         )}
       </div>
 
@@ -778,6 +1018,31 @@ export default function Header() {
     setHidden((cur) => (cur === h ? cur : h));
   });
 
+  // Overlay pages (the product page) scroll an inner container, not the
+  // window — a capture-phase listener catches those scrolls too so the bar
+  // still turns white the moment content moves under it.
+  useEffect(() => {
+    const onAnyScroll = (e: Event) => {
+      const t = e.target;
+      if (t === document || t === window) return; // window path handled above
+      const el = t as HTMLElement;
+      if (!el || typeof el.scrollTop !== "number") return;
+      // Only full-height vertical scrollers count (ignore rails/carousels).
+      if (el.clientHeight >= window.innerHeight * 0.7 && el.scrollHeight > el.clientHeight + 60) {
+        const s = el.scrollTop > 40;
+        setScrolled((cur) => (cur === s ? cur : s));
+      }
+    };
+    document.addEventListener("scroll", onAnyScroll, true);
+    return () => document.removeEventListener("scroll", onAnyScroll, true);
+  }, []);
+
+  // Closing an overlay leaves no scroll event behind — resync on route change.
+  const { pathname } = useLocation();
+  useEffect(() => {
+    if (window.scrollY <= 40) setScrolled(false);
+  }, [pathname]);
+
   // Contrast adaptation: a 1px detection line just under the bar reports the
   // tone of whichever section is crossing it. Several sections can cross it at
   // once (an overlay page keeps its base page mounted underneath), so the LAST
@@ -837,11 +1102,11 @@ export default function Header() {
   const barBg = scrolled
     ? dark
       ? isMobile
-        ? "rgba(17,17,17,0.92)"
+        ? "rgba(17,17,17,0.97)"
         : "rgba(17,17,17,0.55)"
       : isMobile
-      ? "rgba(255,255,255,0.92)"
-      : "rgba(255,255,255,0.6)"
+      ? "#ffffff" // solid white once scrolled — content disappears cleanly under it
+      : "rgba(255,255,255,0.92)"
     : "transparent";
 
   return (
@@ -901,7 +1166,7 @@ export default function Header() {
         </button>
 
         {/* right cluster */}
-        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 14 : 28 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 4 : 16 }}>
           {!isMobile && (
             <>
               <NavLink

@@ -5,7 +5,9 @@ import { GLOW_COLOR } from "../lib/constants";
 import { apiGet } from "../lib/api";
 
 /** Focused flows where a promo bar would cover actions or distract. */
-const QUIET_PATHS = ["/checkout", "/admin", "/order-confirmed"];
+// Product pages carry their own fixed add-to-bag bar on mobile — the promo
+// bar would sit on top of it, so it stays quiet there too.
+const QUIET_PATHS = ["/checkout", "/admin", "/order-confirmed", "/product/"];
 
 type Banner = {
   id: number;

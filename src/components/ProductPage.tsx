@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence, useSpring, type PanInfo } from "framer-motion";
-import { useParams, Navigate } from "react-router-dom";
+import { useParams, useNavigate, Navigate } from "react-router-dom";
 import { TEXT_COLOR, GLOW_COLOR, ASSET, asset } from "../lib/constants";
 import { productImageFile, getGallery } from "../lib/products";
 import { useIsMobile } from "../lib/useResponsive";
@@ -147,30 +147,54 @@ function MobileGallery({
   index,
   setIndex,
   onZoom,
+  productId,
 }: {
   images: string[];
   panel: string;
   index: number;
   setIndex: (i: number) => void;
   onZoom: () => void;
+  productId: string;
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
+  const railRef = useRef<HTMLDivElement>(null);
+  // True when the index change originated from the user's own swipe — the
+  // native snap owns that motion, so the sync effect must NOT scroll back at
+  // it (that tug-of-war is what reads as lag/shake mid-gesture).
+  const fromTrackScroll = useRef(false);
 
-  // Reflect external index changes (dots / keyboard) into the scroll position.
   useEffect(() => {
     const el = trackRef.current;
     if (!el) return;
-    const targetLeft = index * el.clientWidth;
-    if (Math.abs(el.scrollLeft - targetLeft) > 2) {
-      el.scrollTo({ left: targetLeft, behavior: "smooth" });
+    if (fromTrackScroll.current) {
+      fromTrackScroll.current = false;
+    } else {
+      // Thumb tap / colour pick / keyboard: switch instantly — no smooth
+      // fly-through fighting scroll-snap, no intermediate images.
+      const targetLeft = index * el.clientWidth;
+      if (Math.abs(el.scrollLeft - targetLeft) > 2) el.scrollTo({ left: targetLeft });
+    }
+    // Keep the active thumb reachable — but only nudge the rail when the
+    // thumb is actually out of view, never recenter for its own sake.
+    const rail = railRef.current;
+    const thumb = rail?.querySelector<HTMLElement>(`[data-thumb="${index}"]`);
+    if (rail && thumb) {
+      const left = thumb.offsetLeft;
+      const right = left + thumb.clientWidth;
+      if (left < rail.scrollLeft + 12 || right > rail.scrollLeft + rail.clientWidth - 12) {
+        rail.scrollTo({ left: Math.max(0, left - rail.clientWidth / 2 + thumb.clientWidth / 2), behavior: "smooth" });
+      }
     }
   }, [index]);
 
   const onScroll = () => {
     const el = trackRef.current;
-    if (!el) return;
-    const i = Math.round(el.scrollLeft / el.clientWidth);
-    if (i !== index) setIndex(i);
+    if (!el || !el.clientWidth) return;
+    const i = Math.max(0, Math.min(images.length - 1, Math.round(el.scrollLeft / el.clientWidth)));
+    if (i !== index) {
+      fromTrackScroll.current = true;
+      setIndex(i);
+    }
   };
 
   return (
@@ -178,46 +202,138 @@ function MobileGallery({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.45, ease: EASE }}
-      style={{
-        position: "relative",
-        width: "100%",
-        aspectRatio: "1 / 1",
-        background: panel,
-        overflow: "hidden",
-      }}
     >
       <style>{`.pg-track::-webkit-scrollbar{display:none}`}</style>
+
+      {/* main image panel — locked to 3:4 portrait, the fashion-industry
+          standard ratio (ASOS/Zalando/catalog guides). Product photos are
+          uploaded at 3:4, so cover-fit fills the frame exactly: consistent
+          height for every product, no cropping, no empty bands. */}
       <div
-        ref={trackRef}
-        onScroll={onScroll}
-        className="pg-track"
         style={{
-          display: "flex",
+          position: "relative",
           width: "100%",
-          height: "100%",
-          overflowX: "auto",
-          overflowY: "hidden",
-          scrollSnapType: "x mandatory",
-          WebkitOverflowScrolling: "touch",
-          scrollbarWidth: "none",
+          aspectRatio: "3 / 4",
+          background: panel,
+          overflow: "hidden",
         }}
       >
-        {images.map((src) => (
+        <div
+          ref={trackRef}
+          onScroll={onScroll}
+          className="pg-track"
+          style={{
+            display: "flex",
+            width: "100%",
+            height: "100%",
+            overflowX: "auto",
+            overflowY: "hidden",
+            scrollSnapType: "x mandatory",
+            WebkitOverflowScrolling: "touch",
+            scrollbarWidth: "none",
+            overscrollBehaviorX: "contain",
+          }}
+        >
+          {images.map((src, i) => (
+            <div
+              key={src}
+              style={{ flex: "0 0 100%", width: "100%", height: "100%", scrollSnapAlign: "center" }}
+            >
+              <img
+                src={src}
+                alt=""
+                onClick={onZoom}
+                draggable={false}
+                decoding="async"
+                loading={i === 0 ? "eager" : "lazy"}
+                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", cursor: "zoom-in" }}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* image counter — quiet, tabular, on a frosted chip */}
+        {images.length > 1 && (
           <div
-            key={src}
-            style={{ flex: "0 0 100%", width: "100%", height: "100%", scrollSnapAlign: "center" }}
+            style={{
+              position: "absolute",
+              top: 14,
+              left: 16,
+              zIndex: 6,
+              padding: "4px 10px",
+              borderRadius: 999,
+              background: "rgba(255,255,255,0.72)",
+              backdropFilter: "blur(6px)",
+              WebkitBackdropFilter: "blur(6px)",
+              fontSize: 11,
+              fontWeight: 500,
+              letterSpacing: "0.6px",
+              color: TEXT_COLOR,
+              fontVariantNumeric: "tabular-nums",
+            }}
           >
-            <img
-              src={src}
-              alt=""
-              onClick={onZoom}
-              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", cursor: "zoom-in" }}
-            />
+            {index + 1} / {images.length}
           </div>
-        ))}
+        )}
+
+        {/* wishlist heart lives on the image — off the toolbar */}
+        <div style={{ position: "absolute", top: 12, right: 12, zIndex: 6 }}>
+          <FavoriteButton productId={productId} variant="floating" size={38} />
+        </div>
+
+        <ZoomButton onClick={onZoom} style={{ top: "auto", bottom: 14 }} />
       </div>
-      <ZoomButton onClick={onZoom} style={{ top: "auto", bottom: 12 }} />
-      <Dots count={images.length} index={index} onSelect={setIndex} />
+
+      {/* thumbnail filmstrip — every image across all colours, running
+          edge-to-edge from the left with square frames on the panel colour;
+          a full-width ink underline glides to the active thumb. */}
+      {images.length > 1 && (
+        <div
+          ref={railRef}
+          className="pg-track"
+          style={{
+            display: "flex",
+            gap: 5,
+            padding: "10px 12px 2px",
+            overflowX: "auto",
+            scrollbarWidth: "none",
+            WebkitOverflowScrolling: "touch",
+          }}
+        >
+          {images.map((src, i) => (
+            <div key={src} style={{ flex: "0 0 auto", display: "flex", flexDirection: "column", gap: 5 }}>
+              <button
+                data-thumb={i}
+                onClick={() => setIndex(i)}
+                aria-label={`Go to image ${i + 1}`}
+                style={{
+                  width: 60,
+                  height: 80, // 3:4, matching the main stage
+                  padding: 0,
+                  border: "none",
+                  borderRadius: 0,
+                  overflow: "hidden",
+                  cursor: "pointer",
+                  background: panel,
+                  opacity: i === index ? 1 : 0.5,
+                  transition: "opacity 0.3s ease",
+                }}
+              >
+                <img src={src} alt="" draggable={false} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              </button>
+              <span style={{ height: 2, width: "100%", display: "block" }}>
+                {i === index && (
+                  <motion.span
+                    layoutId="pg-thumb-underline"
+                    transition={{ duration: 0.35, ease: EASE }}
+                    style={{ display: "block", height: 2, width: "100%", background: "#141414" }}
+                  />
+                )}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </motion.div>
   );
 }
@@ -348,9 +464,10 @@ function navBtn(side: "left" | "right"): React.CSSProperties {
 function Accordion({ title, body }: { title: string; body: string }) {
   const [open, setOpen] = useState(false);
   return (
-    <div style={{ borderTop: "1px solid rgba(84,84,84,0.18)" }}>
+    <div style={{ borderTop: "1px solid rgba(84,84,84,0.14)" }}>
       <button
         onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
         style={{
           width: "100%",
           display: "flex",
@@ -358,11 +475,12 @@ function Accordion({ title, body }: { title: string; body: string }) {
           alignItems: "center",
           background: "none",
           border: "none",
-          padding: "16px 0",
+          padding: "18px 0",
           cursor: "pointer",
           fontFamily: "'Inter Tight', sans-serif",
-          fontSize: 14,
+          fontSize: 13,
           fontWeight: 500,
+          letterSpacing: "0.4px",
           color: TEXT_COLOR,
         }}
       >
@@ -370,9 +488,11 @@ function Accordion({ title, body }: { title: string; body: string }) {
         <motion.span
           animate={{ rotate: open ? 45 : 0 }}
           transition={{ duration: 0.3, ease: EASE }}
-          style={{ fontSize: 20, lineHeight: 1, color: TEXT_COLOR }}
+          style={{ display: "inline-flex", color: TEXT_COLOR }}
         >
-          +
+          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+            <path d="M12 4.5v15M4.5 12h15" />
+          </svg>
         </motion.span>
       </button>
       <AnimatePresence initial={false}>
@@ -386,10 +506,11 @@ function Accordion({ title, body }: { title: string; body: string }) {
           >
             <p
               style={{
-                paddingBottom: 18,
-                fontSize: 13,
-                lineHeight: 1.7,
+                paddingBottom: 20,
+                fontSize: 13.5,
+                lineHeight: 1.75,
                 color: "rgba(84,84,84,0.75)",
+                maxWidth: 440,
               }}
             >
               {body}
@@ -404,6 +525,7 @@ function Accordion({ title, body }: { title: string; body: string }) {
 export default function ProductPage() {
   const isMobile = useIsMobile();
   const { id } = useParams();
+  const navigate = useNavigate();
   const { close, consumeOrigin } = useProductNav();
   const { products, getById, loading: catalogLoading } = useCatalog();
   const { freeOver } = useDeliveryConfig();
@@ -417,36 +539,48 @@ export default function ProductPage() {
   // Selected option per attribute (attrId → optionId) for variant products.
   const [sel, setSel] = useState<Record<number, number>>({});
 
-  // Images of the currently-selected variant (when it has its own gallery).
-  const variantGallery = useMemo(() => {
+  // The variant matching the current option selection (gallery-jump lookup).
+  const galleryVariant = useMemo(() => {
     const attrs = product?.attributes ?? [];
     if (!product || !attrs.length || !product.variants?.length) return null;
     const ids = attrs.map((a) => sel[a.id] ?? a.options[0]?.id).filter((x): x is number => x != null);
-    const v = product.variants.find((vt) => sameSet(vt.optionIds, ids));
-    return v?.images?.length ? v.images : null;
+    return product.variants.find((vt) => sameSet(vt.optionIds, ids)) ?? null;
   }, [product, sel]);
 
-  // Gallery — the selected variant's images when present, else the product's.
-  // The clicked card image is kept at the front (product view only) so the
-  // shared-element morph lands on the same picture.
-  const gallery = useMemo(() => {
-    if (!product) return [] as string[];
-    const base = variantGallery ?? (product.images?.length ? product.images : getGallery(product).map(asset));
-    const g = [...base];
-    if (!variantGallery && origin && !g.includes(origin.imgSrc)) g.unshift(origin.imgSrc);
-    return g;
-  }, [product, origin, variantGallery]);
+  // ONE combined gallery: the product's images first, then every variant's
+  // images (deduped, in variant order) — so the thumbnail rail shows the
+  // whole story across colours, and picking a colour jumps to its picture.
+  // The clicked card image is kept at the front so the shared-element morph
+  // lands on the same picture.
+  const combined = useMemo(() => {
+    const variantStart = new Map<number, number>(); // variant id → first image index
+    if (!product) return { list: [] as string[], variantStart };
+    const list = product.images?.length ? [...product.images] : getGallery(product).map(asset);
+    if (origin && !list.includes(origin.imgSrc)) list.unshift(origin.imgSrc);
+    for (const v of product.variants ?? []) {
+      for (const src of v.images ?? []) {
+        let idx = list.indexOf(src);
+        if (idx === -1) { idx = list.length; list.push(src); }
+        if (!variantStart.has(v.id)) variantStart.set(v.id, idx);
+      }
+    }
+    return { list, variantStart };
+  }, [product, origin]);
+  const gallery = combined.list;
 
   const initialIndex = Math.max(0, gallery.indexOf(origin?.imgSrc ?? gallery[0] ?? ""));
   const [activeIndex, setActiveIndex] = useState(initialIndex);
 
-  // When the shopper switches variant, show that variant's gallery from its
-  // first image (skip the initial run so the entrance morph isn't disturbed).
-  const firstGalleryRun = useRef(true);
+  // Switching colour/variant glides the gallery to that variant's first
+  // image. `sel` only changes on a real user pick, so the entrance view
+  // (hero image) is never disturbed by hydration.
   useEffect(() => {
-    if (firstGalleryRun.current) { firstGalleryRun.current = false; return; }
-    setActiveIndex(0);
-  }, [variantGallery]);
+    if (!Object.keys(sel).length) return;
+    if (!galleryVariant) return;
+    const idx = combined.variantStart.get(galleryVariant.id);
+    if (idx != null) setActiveIndex(idx);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sel]);
   const activeSrc = gallery[activeIndex] ?? "";
   const [zoomOpen, setZoomOpen] = useState(false);
 
@@ -462,6 +596,8 @@ export default function ProductPage() {
 
   const [color, setColor] = useState(0);
   const [qty, setQty] = useState(1);
+  // Mobile: the bottom bar expands into a variant sheet (color/size/qty).
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   // Fully lock the page behind: pin <body> so the document scrollbar disappears
   // and restore the exact scroll on close.
@@ -770,13 +906,18 @@ export default function ProductPage() {
         }}
       >
         {isMobile ? (
-          <MobileGallery
-            images={gallery}
-            panel={product.panel}
-            index={activeIndex}
-            setIndex={setActiveIndex}
-            onZoom={() => setZoomOpen(true)}
-          />
+          /* Start the gallery below the fixed header (66px tall on mobile)
+             instead of sliding underneath it. */
+          <div style={{ marginTop: 66 }}>
+            <MobileGallery
+              images={gallery}
+              panel={product.panel}
+              index={activeIndex}
+              setIndex={setActiveIndex}
+              onZoom={() => setZoomOpen(true)}
+              productId={product.id}
+            />
+          </div>
         ) : (
           <div style={{ flex: `0 0 ${infoStart}px`, height: "auto", pointerEvents: "none" }} />
         )}
@@ -787,97 +928,88 @@ export default function ProductPage() {
             flex: isMobile ? "none" : "1 1 auto",
             // Desktop: top padding aligns the text with the gallery top just
             // under the fixed <Header />; left padding IS the gallery→info gap.
-            padding: isMobile ? "28px 24px 56px" : `${HEADER_CLEAR + 12}px 56px 72px ${INFO_GAP}px`,
+            // Mobile bottom padding clears the fixed add-to-bag bar.
+            padding: isMobile ? "26px 20px 130px" : `${HEADER_CLEAR + 12}px 56px 72px ${INFO_GAP}px`,
             display: "flex",
             flexDirection: "column",
             justifyContent: "flex-start",
             maxWidth: isMobile ? "100%" : INFO_W + INFO_GAP + 56,
           }}
         >
-          {/* eyebrow */}
-          <motion.div
-            {...block(0)}
-            style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}
-          >
-            <span
+          {/* eyebrow — quiet, editorial, tappable back into the category */}
+          {product.category && (
+            <motion.button
+              {...block(0)}
+              onClick={() =>
+                navigate(`/shop?category=${encodeURIComponent(product.categories?.[0]?.slug ?? product.category)}`)
+              }
               style={{
-                fontFamily: "'Instrument Serif', serif",
-                fontSize: 20,
-                color: "rgba(84,84,84,0.6)",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                marginBottom: 16,
+                background: "none",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+                alignSelf: "flex-start",
+                fontFamily: "'Inter Tight', sans-serif",
               }}
             >
-              ({String(products.findIndex((p) => p.id === product.id) + 1).padStart(2, "0")})
-            </span>
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: "2.5px",
-                color: "rgba(84,84,84,0.55)",
-                textTransform: "uppercase",
-              }}
-            >
-              {product.category}
-            </span>
-          </motion.div>
+              <span style={{ width: 22, height: 1, background: "rgba(84,84,84,0.4)", display: "block" }} />
+              <span
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 600,
+                  letterSpacing: "2.5px",
+                  color: "rgba(84,84,84,0.6)",
+                  textTransform: "uppercase",
+                }}
+              >
+                {product.category}
+              </span>
+            </motion.button>
+          )}
 
-          {/* name */}
+          {/* name — refined scale; luxury PDPs never shout */}
           <motion.h1
             {...block(1)}
             style={{
-              fontSize: isMobile ? "clamp(40px, 13vw, 60px)" : 60,
-              fontWeight: 600,
-              letterSpacing: "-2px",
-              lineHeight: 1,
+              fontSize: isMobile ? "clamp(26px, 7.5vw, 32px)" : 42,
+              fontWeight: 500,
+              letterSpacing: isMobile ? "-0.6px" : "-1.1px",
+              lineHeight: 1.08,
               color: TEXT_COLOR,
-              marginBottom: 12,
+              marginBottom: 10,
             }}
           >
             {product.name}
           </motion.h1>
 
-          {/* price */}
+          {/* price — the current price leads; on sale it turns a classic
+              fashion-retail red (medium weight, never shouty) with the old
+              price struck through beside it. */}
           <motion.div
             {...block(2)}
-            style={{ fontSize: 22, fontWeight: 500, color: TEXT_COLOR, marginBottom: 22, display: "flex", alignItems: "baseline", gap: 10 }}
+            style={{ marginBottom: 26, display: "flex", alignItems: "baseline", gap: 10 }}
           >
-            <span style={{ fontVariantNumeric: "tabular-nums" }}>{fmt(unitPrice)}</span>
+            <span
+              style={{
+                fontSize: 20,
+                fontWeight: 500,
+                letterSpacing: "-0.3px",
+                color: unitCompareAt != null && unitCompareAt > unitPrice ? "#c4342c" : TEXT_COLOR,
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {fmt(unitPrice)}
+            </span>
             {unitCompareAt != null && unitCompareAt > unitPrice && (
-              <span style={{ fontSize: 16, color: "rgba(84,84,84,0.5)", textDecoration: "line-through", fontVariantNumeric: "tabular-nums" }}>
+              <span style={{ fontSize: 14, color: "rgba(84,84,84,0.5)", textDecoration: "line-through", fontVariantNumeric: "tabular-nums" }}>
                 {fmt(unitCompareAt)}
               </span>
             )}
           </motion.div>
-
-          {/* description — the admin's rich-text editor stores HTML, so render
-              it as markup (admin-authored, trusted); plain text passes through
-              unchanged. */}
-          {/<\/?[a-z][\s\S]*>/i.test(product.description || "") ? (
-            <motion.div
-              {...block(3)}
-              style={{
-                fontSize: 14,
-                lineHeight: 1.75,
-                color: "rgba(84,84,84,0.8)",
-                marginBottom: 26,
-                maxWidth: 440,
-              }}
-              dangerouslySetInnerHTML={{ __html: product.description }}
-            />
-          ) : (
-            <motion.p
-              {...block(3)}
-              style={{
-                fontSize: 14,
-                lineHeight: 1.75,
-                color: "rgba(84,84,84,0.8)",
-                marginBottom: 26,
-                maxWidth: 440,
-              }}
-            >
-              {product.description}
-            </motion.p>
-          )}
 
           {/* variant selectors — one group per attribute (Color, Size, …) */}
           {hasVariants ? (
@@ -901,11 +1033,15 @@ export default function ProductPage() {
                             aria-label={o.value}
                             title={avail ? o.value : `${o.value} — unavailable`}
                             style={{
-                              width: 30, height: 30, borderRadius: "50%", background: o.hex, cursor: "pointer",
-                              border: isSel ? "2px solid #111" : "2px solid rgba(84,84,84,0.2)",
+                              width: 28, height: 28, borderRadius: "50%", background: o.hex, cursor: "pointer",
+                              border: "none",
+                              // Selected: ink ring with a white breathing gap.
+                              boxShadow: isSel
+                                ? "0 0 0 2px #ffffff, 0 0 0 3.5px #141414"
+                                : "0 0 0 1px rgba(84,84,84,0.25)",
                               outline: "none",
                               opacity: avail ? 1 : 0.35,
-                              transition: "outline 0.2s ease, border 0.2s ease, opacity 0.2s ease",
+                              transition: "box-shadow 0.2s ease, opacity 0.2s ease",
                             }}
                           />
                         ) : (
@@ -913,10 +1049,10 @@ export default function ProductPage() {
                             key={o.id}
                             onClick={() => setSel((s) => ({ ...s, [a.id]: o.id }))}
                             style={{
-                              height: 34, minWidth: 42, padding: "0 14px", borderRadius: 999,
-                              background: isSel ? "#141414" : "transparent", cursor: "pointer",
-                              fontFamily: "'Inter Tight', sans-serif", fontSize: 13, fontWeight: isSel ? 600 : 400, color: isSel ? "#ffffff" : "#111",
-                              border: isSel ? "2px solid #111" : "2px solid rgba(84,84,84,0.2)",
+                              height: 42, minWidth: 52, padding: "0 16px", borderRadius: 3,
+                              background: isSel ? "#141414" : "#ffffff", cursor: "pointer",
+                              fontFamily: "'Inter Tight', sans-serif", fontSize: 13, fontWeight: isSel ? 600 : 450, color: isSel ? "#ffffff" : "#141414",
+                              border: isSel ? "1px solid #141414" : "1px solid rgba(84,84,84,0.3)",
                               opacity: avail ? 1 : 0.4, textDecoration: avail ? "none" : "line-through",
                               transition: "background 0.2s ease, border 0.2s ease, opacity 0.2s ease",
                             }}
@@ -949,10 +1085,13 @@ export default function ProductPage() {
                       onClick={() => setColor(i)}
                       aria-label={c.name}
                       style={{
-                        width: 30, height: 30, borderRadius: "50%", background: c.hex, cursor: "pointer",
-                        border: isSel ? "2px solid #111" : "2px solid rgba(84,84,84,0.2)",
+                        width: 28, height: 28, borderRadius: "50%", background: c.hex, cursor: "pointer",
+                        border: "none",
+                        boxShadow: isSel
+                          ? "0 0 0 2px #ffffff, 0 0 0 3.5px #141414"
+                          : "0 0 0 1px rgba(84,84,84,0.25)",
                         outline: "none",
-                        transition: "outline 0.2s ease, border 0.2s ease",
+                        transition: "box-shadow 0.2s ease",
                       }}
                     />
                   ) : (
@@ -960,10 +1099,10 @@ export default function ProductPage() {
                       key={`${c.name}-${i}`}
                       onClick={() => setColor(i)}
                       style={{
-                        height: 30, padding: "0 14px", borderRadius: 999,
-                        background: isSel ? "#141414" : "transparent", cursor: "pointer",
-                        fontFamily: "'Inter Tight', sans-serif", fontSize: 13, fontWeight: isSel ? 600 : 400, color: isSel ? "#ffffff" : "#111",
-                        border: isSel ? "2px solid #111" : "2px solid rgba(84,84,84,0.2)",
+                        height: 42, minWidth: 52, padding: "0 16px", borderRadius: 3,
+                        background: isSel ? "#141414" : "#ffffff", cursor: "pointer",
+                        fontFamily: "'Inter Tight', sans-serif", fontSize: 13, fontWeight: isSel ? 600 : 450, color: isSel ? "#ffffff" : "#141414",
+                        border: isSel ? "1px solid #141414" : "1px solid rgba(84,84,84,0.3)",
                         transition: "background 0.2s ease, border 0.2s ease",
                       }}
                     >
@@ -975,42 +1114,96 @@ export default function ProductPage() {
             </motion.div>
           ) : null}
 
-          {/* qty + add to bag */}
+          {/* qty + add to bag — inline on desktop; on mobile this lives in a
+              fixed bottom bar so it is always one thumb-tap away. */}
+          {!isMobile && (
+            <motion.div
+              {...block(5)}
+              style={{ display: "flex", gap: 12, marginBottom: 30, alignItems: "stretch" }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  border: "1px solid rgba(84,84,84,0.25)",
+                  borderRadius: 999,
+                  padding: "0 6px",
+                }}
+              >
+                <button onClick={() => setQty((q) => Math.max(1, q - 1))} style={qtyBtn}>
+                  −
+                </button>
+                <span
+                  style={{ width: 26, textAlign: "center", fontSize: 15, fontWeight: 500, color: TEXT_COLOR }}
+                >
+                  {qty}
+                </span>
+                <button onClick={() => setQty((q) => q + 1)} style={qtyBtn}>
+                  +
+                </button>
+              </div>
+              <AddToBag
+                product={product}
+                color={{ name: selectedLabel, hex: selectedHex }}
+                variant={hasVariants ? addVariant : undefined}
+                unitPrice={unitPrice}
+                disabled={variantUnavailable || variantSoldOut}
+                qty={qty}
+              />
+              <FavoriteButton productId={product.id} variant="outline" size={46} />
+            </motion.div>
+          )}
+
+          {/* reassurance — the promises a shopper checks before committing */}
           <motion.div
             {...block(5)}
-            style={{ display: "flex", gap: 12, marginBottom: 30, alignItems: "stretch" }}
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              columnGap: 10,
+              rowGap: 4,
+              fontSize: 12,
+              color: "rgba(84,84,84,0.65)",
+              marginBottom: 26,
+            }}
           >
-            <div
+            <span>Cash on delivery</span>
+            <span style={{ width: 3, height: 3, borderRadius: 999, background: "rgba(84,84,84,0.4)" }} />
+            <span>Free delivery over {fmt(freeOver, true)}</span>
+            <span style={{ width: 3, height: 3, borderRadius: 999, background: "rgba(84,84,84,0.4)" }} />
+            <span>30-day returns</span>
+          </motion.div>
+
+          {/* description — the admin's rich-text editor stores HTML, so render
+              it as markup (admin-authored, trusted); plain text passes through
+              unchanged. */}
+          {/<\/?[a-z][\s\S]*>/i.test(product.description || "") ? (
+            <motion.div
+              {...block(6)}
               style={{
-                display: "flex",
-                alignItems: "center",
-                border: "1px solid rgba(84,84,84,0.25)",
-                borderRadius: 999,
-                padding: "0 6px",
+                fontSize: 14,
+                lineHeight: 1.75,
+                color: "rgba(84,84,84,0.8)",
+                marginBottom: 26,
+                maxWidth: 440,
+              }}
+              dangerouslySetInnerHTML={{ __html: product.description }}
+            />
+          ) : product.description ? (
+            <motion.p
+              {...block(6)}
+              style={{
+                fontSize: 14,
+                lineHeight: 1.75,
+                color: "rgba(84,84,84,0.8)",
+                marginBottom: 26,
+                maxWidth: 440,
               }}
             >
-              <button onClick={() => setQty((q) => Math.max(1, q - 1))} style={qtyBtn}>
-                −
-              </button>
-              <span
-                style={{ width: 26, textAlign: "center", fontSize: 15, fontWeight: 500, color: TEXT_COLOR }}
-              >
-                {qty}
-              </span>
-              <button onClick={() => setQty((q) => q + 1)} style={qtyBtn}>
-                +
-              </button>
-            </div>
-            <AddToBag
-              product={product}
-              color={{ name: selectedLabel, hex: selectedHex }}
-              variant={hasVariants ? addVariant : undefined}
-              unitPrice={unitPrice}
-              disabled={variantUnavailable || variantSoldOut}
-              qty={qty}
-            />
-            <FavoriteButton productId={product.id} variant="outline" size={46} />
-          </motion.div>
+              {product.description}
+            </motion.p>
+          ) : null}
 
           {/* accordions */}
           <motion.div {...block(6)}>
@@ -1022,27 +1215,288 @@ export default function ProductPage() {
             />
           </motion.div>
 
-          {/* related */}
-          <motion.div {...block(7)} style={{ marginTop: 40 }}>
+          {/* related — a swipeable rail on mobile, grid on desktop */}
+          <motion.div {...block(7)} style={{ marginTop: 44 }}>
             <div
               style={{
                 fontSize: 11,
                 fontWeight: 600,
                 letterSpacing: "2px",
                 color: "rgba(84,84,84,0.5)",
-                marginBottom: 14,
+                marginBottom: 16,
+                textTransform: "uppercase",
               }}
             >
-              YOU MAY ALSO LIKE
+              You may also like
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
-              {related.map((p, i) => (
-                <ProductCard key={p.id} product={p} index={i} compact showFavorite={false} />
-              ))}
-            </div>
+            {isMobile ? (
+              <div
+                className="pg-track"
+                style={{
+                  display: "flex",
+                  gap: 12,
+                  overflowX: "auto",
+                  scrollSnapType: "x mandatory",
+                  WebkitOverflowScrolling: "touch",
+                  scrollbarWidth: "none",
+                  margin: "0 -20px",
+                  padding: "0 20px",
+                }}
+              >
+                {related.map((p, i) => (
+                  <div key={p.id} style={{ flex: "0 0 46vw", scrollSnapAlign: "start" }}>
+                    <ProductCard product={p} index={i} compact showFavorite={false} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+                {related.map((p, i) => (
+                  <ProductCard key={p.id} product={p} index={i} compact showFavorite={false} />
+                ))}
+              </div>
+            )}
           </motion.div>
         </div>
       </div>
+
+      {/* mobile: the bottom toolbar — a summary chip that unfolds into a full
+          variant sheet (every option axis + quantity), with add-to-bag always
+          one thumb-tap away. */}
+      {isMobile && (
+        <>
+          <AnimatePresence>
+            {sheetOpen && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25, ease: EASE }}
+                onClick={() => setSheetOpen(false)}
+                style={{
+                  position: "fixed",
+                  inset: 0,
+                  zIndex: 58,
+                  background: "rgba(17,17,17,0.35)",
+                }}
+              />
+            )}
+          </AnimatePresence>
+
+          <motion.div
+            initial={{ y: 84, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.5, ease: EASE, delay: 0.35 }}
+            style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 60 }}
+          >
+            {/* the sheet */}
+            <AnimatePresence initial={false}>
+              {sheetOpen && (
+                <motion.div
+                  key="variant-sheet"
+                  initial={{ y: 48, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: 48, opacity: 0 }}
+                  transition={{ duration: 0.38, ease: EASE }}
+                  style={{
+                    background: "#ffffff",
+                    borderRadius: "20px 20px 0 0",
+                    boxShadow: "0 -20px 60px rgba(20,20,20,0.16)",
+                    padding: "14px 20px 8px",
+                    maxHeight: "58vh",
+                    overflowY: "auto",
+                  }}
+                >
+                  {/* grab handle */}
+                  <div style={{ width: 36, height: 4, borderRadius: 999, background: "rgba(20,20,20,0.16)", margin: "0 auto 18px" }} />
+
+                  {hasVariants
+                    ? attributes.map((a, gi) => {
+                        const selectedId = chosen(a);
+                        const selName = a.options.find((o) => o.id === selectedId)?.value ?? "";
+                        return (
+                          <motion.div
+                            key={a.id}
+                            initial={{ opacity: 0, y: 12 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.35, ease: EASE, delay: 0.06 + gi * 0.07 }}
+                            style={{ marginBottom: 20 }}
+                          >
+                            <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: "2px", color: "rgba(84,84,84,0.5)", marginBottom: 10, textTransform: "uppercase" }}>
+                              {a.name} — {selName}
+                            </div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                              {a.options.map((o) => {
+                                const isSel = o.id === selectedId;
+                                const avail = optionAvailable(a.id, o.id);
+                                return o.hex ? (
+                                  <button
+                                    key={o.id}
+                                    onClick={() => setSel((s) => ({ ...s, [a.id]: o.id }))}
+                                    aria-label={o.value}
+                                    style={{
+                                      width: 32, height: 32, borderRadius: "50%", background: o.hex, cursor: "pointer", border: "none",
+                                      boxShadow: isSel ? "0 0 0 2px #ffffff, 0 0 0 3.5px #141414" : "0 0 0 1px rgba(84,84,84,0.25)",
+                                      opacity: avail ? 1 : 0.35,
+                                      transition: "box-shadow 0.2s ease, opacity 0.2s ease",
+                                    }}
+                                  />
+                                ) : (
+                                  <button
+                                    key={o.id}
+                                    onClick={() => setSel((s) => ({ ...s, [a.id]: o.id }))}
+                                    style={{
+                                      height: 42, minWidth: 52, padding: "0 16px", borderRadius: 3,
+                                      background: isSel ? "#141414" : "#ffffff", cursor: "pointer",
+                                      fontFamily: "'Inter Tight', sans-serif", fontSize: 13, fontWeight: isSel ? 600 : 450,
+                                      color: isSel ? "#ffffff" : "#141414",
+                                      border: isSel ? "1px solid #141414" : "1px solid rgba(84,84,84,0.3)",
+                                      opacity: avail ? 1 : 0.4, textDecoration: avail ? "none" : "line-through",
+                                      transition: "background 0.2s ease, border 0.2s ease, opacity 0.2s ease",
+                                    }}
+                                  >
+                                    {o.value}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </motion.div>
+                        );
+                      })
+                    : product.colors.length > 0 && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 12 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.35, ease: EASE, delay: 0.06 }}
+                          style={{ marginBottom: 20 }}
+                        >
+                          <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: "2px", color: "rgba(84,84,84,0.5)", marginBottom: 10, textTransform: "uppercase" }}>
+                            Color — {product.colors[color].name}
+                          </div>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                            {product.colors.map((c, i) => {
+                              const isSel = i === color;
+                              return c.hex ? (
+                                <button
+                                  key={`${c.name}-${i}`}
+                                  onClick={() => setColor(i)}
+                                  aria-label={c.name}
+                                  style={{
+                                    width: 32, height: 32, borderRadius: "50%", background: c.hex, cursor: "pointer", border: "none",
+                                    boxShadow: isSel ? "0 0 0 2px #ffffff, 0 0 0 3.5px #141414" : "0 0 0 1px rgba(84,84,84,0.25)",
+                                    transition: "box-shadow 0.2s ease",
+                                  }}
+                                />
+                              ) : (
+                                <button
+                                  key={`${c.name}-${i}`}
+                                  onClick={() => setColor(i)}
+                                  style={{
+                                    height: 42, minWidth: 52, padding: "0 16px", borderRadius: 3,
+                                    background: isSel ? "#141414" : "#ffffff", cursor: "pointer",
+                                    fontFamily: "'Inter Tight', sans-serif", fontSize: 13, fontWeight: isSel ? 600 : 450,
+                                    color: isSel ? "#ffffff" : "#141414",
+                                    border: isSel ? "1px solid #141414" : "1px solid rgba(84,84,84,0.3)",
+                                    transition: "background 0.2s ease, border 0.2s ease",
+                                  }}
+                                >
+                                  {c.name}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </motion.div>
+                      )}
+
+                  {/* quantity */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.35, ease: EASE, delay: 0.06 + (hasVariants ? attributes.length : 1) * 0.07 }}
+                    style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}
+                  >
+                    <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: "2px", color: "rgba(84,84,84,0.5)", textTransform: "uppercase" }}>
+                      Quantity
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", border: "1px solid rgba(84,84,84,0.25)", borderRadius: 999, padding: "0 4px", height: 40 }}>
+                      <button onClick={() => setQty((q) => Math.max(1, q - 1))} style={qtyBtn}>−</button>
+                      <span style={{ width: 24, textAlign: "center", fontSize: 14.5, fontWeight: 500, color: TEXT_COLOR, fontVariantNumeric: "tabular-nums" }}>{qty}</span>
+                      <button onClick={() => setQty((q) => q + 1)} style={qtyBtn}>+</button>
+                    </div>
+                  </motion.div>
+
+                  {(variantUnavailable || variantSoldOut) && (
+                    <div style={{ fontSize: 12.5, color: "#c0563f", marginBottom: 12 }}>
+                      {variantSoldOut ? "This combination is out of stock." : "This combination isn’t available — pick another."}
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* the bar */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "12px 16px calc(12px + env(safe-area-inset-bottom))",
+                background: sheetOpen ? "#ffffff" : "rgba(255,255,255,0.96)",
+                backdropFilter: "blur(10px)",
+                WebkitBackdropFilter: "blur(10px)",
+                borderTop: sheetOpen ? "1px solid rgba(58,58,58,0.06)" : "1px solid rgba(58,58,58,0.1)",
+              }}
+            >
+              {/* selection summary chip → opens the sheet */}
+              <button
+                onClick={() => setSheetOpen((o) => !o)}
+                aria-expanded={sheetOpen}
+                aria-label="Choose options"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  height: 46,
+                  padding: "0 12px",
+                  maxWidth: 132,
+                  border: "1px solid rgba(84,84,84,0.25)",
+                  borderRadius: 999,
+                  background: "#ffffff",
+                  cursor: "pointer",
+                  fontFamily: "'Inter Tight', sans-serif",
+                  flexShrink: 0,
+                }}
+              >
+                {selectedHex ? (
+                  <span style={{ width: 15, height: 15, borderRadius: "50%", background: selectedHex, boxShadow: "0 0 0 1px rgba(84,84,84,0.25)", flexShrink: 0 }} />
+                ) : (
+                  <span style={{ fontSize: 12.5, fontWeight: 500, color: TEXT_COLOR, fontVariantNumeric: "tabular-nums" }}>×{qty}</span>
+                )}
+                <span style={{ fontSize: 12.5, fontWeight: 500, color: TEXT_COLOR, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {selectedLabel || "Options"}
+                </span>
+                <motion.span
+                  animate={{ rotate: sheetOpen ? 180 : 0 }}
+                  transition={{ duration: 0.3, ease: EASE }}
+                  style={{ display: "inline-flex", color: "rgba(84,84,84,0.6)", flexShrink: 0 }}
+                >
+                  <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m18 15-6-6-6 6" />
+                  </svg>
+                </motion.span>
+              </button>
+              <AddToBag
+                product={product}
+                color={{ name: selectedLabel, hex: selectedHex }}
+                variant={hasVariants ? addVariant : undefined}
+                unitPrice={unitPrice}
+                disabled={variantUnavailable || variantSoldOut}
+                qty={qty}
+              />
+            </div>
+          </motion.div>
+        </>
+      )}
 
       {/* fullscreen image viewer */}
       <AnimatePresence>

@@ -660,6 +660,10 @@ const PF_CSS = `
   .pf-card { padding: 16px; }
   .pf-grid.essentials { grid-template-columns: 1fr; }
   .pf-product-type-row { width: 100%; }
+  .pf-variation-row { grid-template-columns: 1fr 34px; }
+  .pf-variation-row > :first-child { grid-column: 1 / -1; }
+  .pf-variant-summary { grid-template-columns: 1fr; }
+  .pf-variant-summary .pf-btn { width: 100%; }
 }
 `;
 

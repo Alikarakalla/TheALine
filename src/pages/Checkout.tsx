@@ -157,16 +157,21 @@ function SectionTitle({
 /* ---------------------------------------------------------------- stepper */
 
 function Stepper({ step, onJump }: { step: number; onJump: (s: number) => void }) {
+  // On phones the three full labels don't fit — keep the label only on the
+  // active step and let the connectors flex, so nothing clips off-screen.
+  const isMobile = useIsMobile();
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 30 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 10, marginBottom: 30, width: "100%" }}>
       {STEPS.map((label, i) => {
         const n = i + 1;
         const done = n < step;
         const active = n === step;
+        const showLabel = !isMobile || active;
         return (
-          <div key={label} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div key={label} style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 10, flex: isMobile && i < STEPS.length - 1 ? "1 1 auto" : "0 0 auto", minWidth: 0 }}>
             <button
               onClick={() => done && onJump(n)}
+              aria-label={label}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -176,6 +181,7 @@ function Stepper({ step, onJump }: { step: number; onJump: (s: number) => void }
                 padding: 0,
                 cursor: done ? "pointer" : "default",
                 fontFamily: "'Inter Tight', sans-serif",
+                flexShrink: 0,
               }}
             >
               <span
@@ -191,23 +197,27 @@ function Stepper({ step, onJump }: { step: number; onJump: (s: number) => void }
                   background: done || active ? "#141414" : "transparent",
                   border: done || active ? "none" : "1.5px solid rgba(58,58,58,0.3)",
                   color: done || active ? "#ffffff" : "rgba(58,58,58,0.5)",
+                  flexShrink: 0,
                   ...TABULAR,
                 }}
               >
                 {done ? <Glyph size={11}>{CheckGlyph}</Glyph> : n}
               </span>
-              <span
-                style={{
-                  fontSize: 13.5,
-                  fontWeight: active ? 600 : 450,
-                  color: active ? TEXT_COLOR : "rgba(58,58,58,0.55)",
-                }}
-              >
-                {label}
-              </span>
+              {showLabel && (
+                <span
+                  style={{
+                    fontSize: 13.5,
+                    fontWeight: active ? 600 : 450,
+                    color: active ? TEXT_COLOR : "rgba(58,58,58,0.55)",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {label}
+                </span>
+              )}
             </button>
             {i < STEPS.length - 1 && (
-              <span style={{ width: 30, height: 1, background: "rgba(58,58,58,0.18)" }} />
+              <span style={{ width: isMobile ? "auto" : 30, minWidth: isMobile ? 14 : 30, flex: isMobile ? "1 1 auto" : "0 0 auto", height: 1, background: "rgba(58,58,58,0.18)" }} />
             )}
           </div>
         );
