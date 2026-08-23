@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import Header from "../components/Header";
-import SerifGlow from "../components/SerifGlow";
 import ProductCard from "../components/ProductCard";
 import { useMoney } from "../context/Currency";
 import {
@@ -658,42 +657,8 @@ export default function Shop() {
       `}</style>
       <Header />
 
-      {/* title */}
-      <div
-        style={{
-          padding: isMobile ? `108px ${PAGE_PAD} 26px` : `142px ${PAGE_PAD} 36px`,
-          maxWidth: PAGE_MAX,
-          margin: "0 auto",
-        }}
-      >
-        <motion.div
-          initial={{ opacity: 0, filter: "blur(8px)", y: 14 }}
-          animate={{ opacity: 1, filter: "blur(0px)", y: 0 }}
-          transition={{ duration: 0.7, ease: EASE }}
-          style={{ display: "flex", alignItems: "baseline", gap: 14 }}
-        >
-          <span
-            style={{
-              fontSize: isMobile ? "clamp(40px, 13vw, 72px)" : 72,
-              fontWeight: 600,
-              letterSpacing: "-3px",
-              lineHeight: 1,
-              color: TEXT_COLOR,
-            }}
-          >
-            Shop
-          </span>
-          <SerifGlow
-            word="all"
-            italic
-            fontSize={isMobile ? "clamp(44px, 14vw, 78px)" : 78}
-            lineHeight={isMobile ? "clamp(40px, 13vw, 74px)" : 74}
-            letterSpacing={-3}
-            strokeWidth={isMobile ? "clamp(9px, 3vw, 16px)" : 16}
-            delay={0.3}
-          />
-        </motion.div>
-      </div>
+      {/* no headline — the catalog opens straight into the filter bar */}
+      <div style={{ height: isMobile ? 84 : 110 }} />
 
       {/* filter bar */}
       <div

@@ -22,10 +22,11 @@ export default function FavoriteButton({
           width: size,
           height: size,
           borderRadius: "50%",
-          background: "rgba(255,255,255,0.85)",
+          background: "rgba(255,255,255,0.9)",
           backdropFilter: "blur(6px)",
+          WebkitBackdropFilter: "blur(6px)",
           border: "none",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+          boxShadow: "0 0 0 1px rgba(20,20,20,0.06), 0 2px 8px rgba(0,0,0,0.06)",
         }
       : {
           width: size,
@@ -53,19 +54,27 @@ export default function FavoriteButton({
         padding: 0,
       }}
     >
+      {/* classically proportioned heart; saved = the brand's gold */}
       <motion.svg
         key={String(active)}
         width={iconSize}
         height={iconSize}
         viewBox="0 0 24 24"
+        fill="none"
         initial={{ scale: active ? 0.4 : 1 }}
         animate={{ scale: 1 }}
         transition={{ type: "spring", stiffness: 500, damping: 14 }}
       >
         <path
-          d="M12 21s-7.5-4.9-10-9.2C0 8 2 4.5 5.5 4.5 8 4.5 9.6 6 12 8c2.4-2 4-3.5 6.5-3.5C22 4.5 24 8 22 11.8 19.5 16.1 12 21 12 21z"
-          strokeWidth={active ? 1 : 1.6}
-          style={{ fill: active ? "#141414" : "none", stroke: active ? "#141414" : TEXT_COLOR }}
+          d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.51 4.05 3 5.5l7 7Z"
+          strokeWidth={1.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{
+            fill: active ? GLOW_COLOR : "none",
+            stroke: active ? "#C9B183" : TEXT_COLOR,
+            transition: "fill 0.2s ease, stroke 0.2s ease",
+          }}
         />
       </motion.svg>
     </motion.button>

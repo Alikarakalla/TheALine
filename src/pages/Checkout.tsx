@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Navigate, useNavigate } from "react-router-dom";
 import Header from "../components/Header";
-import SerifGlow from "../components/SerifGlow";
+import PageTitle from "../components/PageTitle";
 import { AuthButton, isEmail, Glyph, CheckGlyph } from "../components/AuthUI";
 import { PhoneField, EMPTY_PHONE, type PhoneValue } from "../components/PhoneField";
 import {
@@ -568,26 +568,7 @@ export default function Checkout() {
             transition={{ duration: 0.7, ease: EASE }}
             style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 28 }}
           >
-            <span
-              style={{
-                fontSize: isMobile ? "clamp(34px, 11vw, 52px)" : 52,
-                fontWeight: 600,
-                letterSpacing: "-2px",
-                lineHeight: 1,
-                color: TEXT_COLOR,
-              }}
-            >
-              Secure
-            </span>
-            <SerifGlow
-              word="checkout"
-              italic
-              fontSize={isMobile ? "clamp(36px, 11.5vw, 56px)" : 56}
-              lineHeight={isMobile ? "clamp(32px, 11vw, 52px)" : 52}
-              letterSpacing={-2}
-              strokeWidth={isMobile ? "clamp(8px, 2.4vw, 12px)" : 12}
-              delay={0.3}
-            />
+            <PageTitle eyebrow="Encrypted & secure" title="Checkout" />
           </motion.div>
 
           {/* mobile collapsible summary */}

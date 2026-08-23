@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import Header from "../Header";
-import SerifGlow from "../SerifGlow";
+import PageTitle from "../PageTitle";
 import {
   TEXT_COLOR,
   TEXT_COLOR_HEX,
@@ -76,28 +76,7 @@ export default function AccountLayout() {
           transition={{ duration: 0.7, ease: EASE }}
           style={{ marginBottom: isMobile ? 26 : 38 }}
         >
-          <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
-            <span
-              style={{
-                fontSize: isMobile ? "clamp(34px, 11vw, 52px)" : 52,
-                fontWeight: 600,
-                letterSpacing: "-2px",
-                lineHeight: 1,
-                color: TEXT_COLOR,
-              }}
-            >
-              Hi,
-            </span>
-            <SerifGlow
-              word={first}
-              italic
-              fontSize={isMobile ? "clamp(36px, 11.5vw, 56px)" : 56}
-              lineHeight={isMobile ? "clamp(32px, 11vw, 52px)" : 52}
-              letterSpacing={-2}
-              strokeWidth={isMobile ? "clamp(8px, 2.4vw, 12px)" : 12}
-              delay={0.3}
-            />
-          </div>
+          <PageTitle eyebrow="Account" title="Hi," accent={first} />
           <div style={{ fontSize: 13.5, color: "rgba(58,58,58,0.62)", marginTop: 10 }}>
             {user.email}
           </div>

@@ -7,7 +7,7 @@ import { apiGet } from "../lib/api";
 /** Focused flows where a promo bar would cover actions or distract. */
 // Product pages carry their own fixed add-to-bag bar on mobile — the promo
 // bar would sit on top of it, so it stays quiet there too.
-const QUIET_PATHS = ["/checkout", "/admin", "/order-confirmed", "/product/"];
+const QUIET_PATHS = ["/checkout", "/admin", "/order-confirmed", "/product/", "/cart"];
 
 type Banner = {
   id: number;

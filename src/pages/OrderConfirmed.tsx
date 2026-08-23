@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import Header from "../components/Header";
-import SerifGlow from "../components/SerifGlow";
+import PageTitle from "../components/PageTitle";
 import { TEXT_COLOR, GLOW_COLOR } from "../lib/constants";
 import { useIsMobile } from "../lib/useResponsive";
 import { useOrders } from "../context/Orders";
@@ -75,28 +75,7 @@ export default function OrderConfirmed() {
           animate={{ opacity: 1, filter: "blur(0px)", y: 0 }}
           transition={{ duration: 0.7, ease: EASE, delay: 0.2 }}
         >
-          <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
-            <span
-              style={{
-                fontSize: isMobile ? "clamp(34px, 11vw, 52px)" : 52,
-                fontWeight: 600,
-                letterSpacing: "-2px",
-                lineHeight: 1,
-                color: TEXT_COLOR,
-              }}
-            >
-              Order
-            </span>
-            <SerifGlow
-              word="confirmed"
-              italic
-              fontSize={isMobile ? "clamp(36px, 11.5vw, 56px)" : 56}
-              lineHeight={isMobile ? "clamp(32px, 11vw, 52px)" : 52}
-              letterSpacing={-2}
-              strokeWidth={isMobile ? "clamp(8px, 2.4vw, 12px)" : 12}
-              delay={0.4}
-            />
-          </div>
+          <PageTitle eyebrow="Thank you" title="Order" accent="confirmed" delay={0.2} />
           <p style={{ marginTop: 14, fontSize: 15, lineHeight: 1.7, color: "rgba(84,84,84,0.75)" }}>
             Thank you, {first}. We've emailed a confirmation to{" "}
             <strong style={{ color: TEXT_COLOR }}>{order.email}</strong>. Your order is

@@ -2,7 +2,7 @@ import { useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
-import SerifGlow from "../components/SerifGlow";
+import PageTitle from "../components/PageTitle";
 import ProductCard from "../components/ProductCard";
 import { TEXT_COLOR, GLOW_COLOR, PAGE_MAX, PAGE_PAD } from "../lib/constants";
 import { type Product } from "../lib/products";
@@ -59,26 +59,7 @@ export default function Favorites() {
           transition={{ duration: 0.7, ease: EASE }}
           style={{ display: "flex", alignItems: "baseline", gap: 14, marginBottom: 8 }}
         >
-          <span
-            style={{
-              fontSize: isMobile ? "clamp(40px, 13vw, 64px)" : 64,
-              fontWeight: 600,
-              letterSpacing: "-2.5px",
-              lineHeight: 1,
-              color: TEXT_COLOR,
-            }}
-          >
-            Your
-          </span>
-          <SerifGlow
-            word="favorites"
-            italic
-            fontSize={isMobile ? "clamp(44px, 14vw, 70px)" : 70}
-            lineHeight={isMobile ? "clamp(40px, 13vw, 66px)" : 66}
-            letterSpacing={-2.5}
-            strokeWidth={isMobile ? "clamp(9px, 3vw, 15px)" : 15}
-            delay={0.3}
-          />
+          <PageTitle eyebrow="Wishlist" title="Your" accent="favorites" />
         </motion.div>
         <div style={{ fontSize: 13, color: "rgba(84,84,84,0.6)", marginBottom: 40 }}>
           {empty

@@ -1,21 +1,13 @@
-import { forwardRef, useState } from "react";
+import { forwardRef, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { TEXT_COLOR, GLOW_COLOR, asset } from "../lib/constants";
-import { productImageFile, type Product } from "../lib/products";
+import { productImageFile, isSoldOut, type Product } from "../lib/products";
 import { useProductNav } from "../context/ProductNav";
 import { useMoney } from "../context/Currency";
 import FavoriteButton from "./FavoriteButton";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
-
-/** Pick black or white text for legibility on a given hex background. */
-function readableOn(hex?: string | null): string {
-  if (!hex) return "#fff";
-  const h = hex.replace("#", "");
-  if (h.length < 6) return "#fff";
-  const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
-  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.62 ? "#111" : "#fff";
-}
+const SALE_RED = "#c4342c";
 
 function Highlight({ text, q }: { text: string; q?: string }) {
   const t = (q || "").trim();
@@ -33,13 +25,15 @@ function Highlight({ text, q }: { text: string; q?: string }) {
   );
 }
 
+type Colorway = { name: string; hex: string | null; image: string | null };
+
 export type ProductCardProps = {
   product: Product;
   /** Position in its grid — used for the staggered entrance. */
   index?: number;
   /** Delay added before the stagger (e.g. while an overlay's curtain wipes). */
   baseDelay?: number;
-  /** Image tile ratio. Defaults to the storefront 4:5. */
+  /** Image tile ratio. Defaults to the catalog-wide 3:4 standard. */
   aspectRatio?: string;
   showFavorite?: boolean;
   showQuickAdd?: boolean;
@@ -54,16 +48,19 @@ export type ProductCardProps = {
 };
 
 /**
- * The one product card used across Shop, Favorites, Search and the
- * "you may also like" row. The image always fills the tile (`cover`) so any
- * uploaded photo fits consistently; variants are driven by props.
+ * THE product card — one shared component for Shop, Favorites, Search,
+ * collections and the "you may also like" rail, modeled on the strongest
+ * fashion PDCs: 3:4 stage with hover crossfade to the second photo, sale
+ * pricing in retail red with the struck original and saving percentage,
+ * a sold-out veil, and colourway thumbnails under the price that swap the
+ * card's photo in place.
  */
 const ProductCard = forwardRef<HTMLDivElement, ProductCardProps>(function ProductCard(
   {
     product,
     index = 0,
     baseDelay = 0,
-    aspectRatio = "4 / 5",
+    aspectRatio = "3 / 4",
     showFavorite = true,
     showQuickAdd = false,
     compact = false,
@@ -76,7 +73,34 @@ const ProductCard = forwardRef<HTMLDivElement, ProductCardProps>(function Produc
   const { open } = useProductNav();
   const fmt = useMoney();
   const [hover, setHover] = useState(false);
-  const img = product.images?.[0] || asset(productImageFile(product));
+  const [activeColor, setActiveColor] = useState<number | null>(null);
+
+  // One entry per colour: its swatch hex and (when the colour's variants
+  // carry photos) the image that represents it.
+  const colorways = useMemo<Colorway[]>(() => {
+    const colorAttr = product.attributes?.find((a) => a.options.some((o) => o.hex));
+    if (colorAttr) {
+      return colorAttr.options.map((o) => {
+        const v = product.variants?.find(
+          (vt) => vt.optionIds.includes(o.id) && (vt.image || vt.images?.length)
+        );
+        return { name: o.value, hex: o.hex ?? null, image: v?.image ?? v?.images?.[0] ?? null };
+      });
+    }
+    return (product.colors ?? []).map((c) => ({ name: c.name, hex: c.hex || null, image: null }));
+  }, [product]);
+
+  const baseImg = product.images?.[0] || asset(productImageFile(product));
+  const hoverImg = product.images?.[1] ?? null;
+  const img = (activeColor != null && colorways[activeColor]?.image) || baseImg;
+
+  const onSale = product.compareAtPrice != null && product.compareAtPrice > product.price;
+  const savePct = onSale ? Math.round((1 - product.price / (product.compareAtPrice as number)) * 100) : 0;
+  const soldOut = isSoldOut(product);
+
+  const hasColorImages = colorways.some((c) => c.image);
+  const maxSwatches = compact ? 3 : 4;
+  const extra = Math.max(0, colorways.length - maxSwatches);
 
   const handleClick = (e: React.MouseEvent) => {
     const el = (e.currentTarget as HTMLElement).querySelector("img") as HTMLImageElement | null;
@@ -107,49 +131,102 @@ const ProductCard = forwardRef<HTMLDivElement, ProductCardProps>(function Produc
         textAlign: "left",
       }}
     >
-      <div style={{ position: "relative", background: product.panel, borderRadius: 12, overflow: "hidden", aspectRatio }}>
+      {/* image stage — 3:4, panel colour, crossfade to the 2nd photo on hover */}
+      <div style={{ position: "relative", background: product.panel, borderRadius: 10, overflow: "hidden", aspectRatio }}>
         <motion.img
           src={img}
           alt={product.name}
-          animate={{ scale: hover ? 1.05 : 1 }}
-          transition={{ duration: 0.5, ease: EASE }}
-          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+          animate={{ scale: hover && !hoverImg ? 1.04 : 1 }}
+          transition={{ duration: 0.6, ease: EASE }}
+          onError={(e) => { (e.target as HTMLImageElement).style.visibility = "hidden"; }}
+          style={{
+            position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover",
+            filter: soldOut ? "grayscale(0.7) opacity(0.6)" : "none",
+            transition: "filter 0.3s ease",
+          }}
         />
+        {hoverImg && activeColor == null && !soldOut && (
+          <motion.img
+            src={hoverImg}
+            alt=""
+            aria-hidden="true"
+            initial={false}
+            animate={{ opacity: hover ? 1 : 0 }}
+            transition={{ duration: 0.35, ease: EASE }}
+            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none" }}
+          />
+        )}
+
         {showFavorite && (
-          <div style={{ position: "absolute", top: 12, right: 12 }} onClick={(e) => e.stopPropagation()}>
-            <FavoriteButton productId={product.id} />
+          <div style={{ position: "absolute", top: 10, right: 10, zIndex: 4 }} onClick={(e) => e.stopPropagation()}>
+            <FavoriteButton productId={product.id} size={compact ? 30 : 34} />
           </div>
         )}
-        {/* tag badges — top-left, coloured per the tag's admin colour */}
-        {product.tags && product.tags.length > 0 && (
-          <div style={{ position: "absolute", top: 12, left: 12, zIndex: 3, display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start", maxWidth: "70%" }}>
-            {product.tags.slice(0, 3).map((t) => (
+
+        {/* ONE quiet label, never a stack: sale wins, else the first tag as a
+            frosted chip with the tag's colour as a small dot. */}
+        {!soldOut && (onSale || (product.tags && product.tags.length > 0)) && (
+          <div style={{ position: "absolute", top: 10, left: 10, zIndex: 3, maxWidth: "72%" }}>
+            {onSale ? (
               <span
-                key={t.id}
                 style={{
                   display: "inline-block",
-                  background: t.color || "#111111",
-                  color: readableOn(t.color),
+                  background: SALE_RED,
+                  color: "#fff",
                   fontSize: compact ? 9.5 : 10.5,
                   fontWeight: 700,
                   letterSpacing: "0.4px",
-                  textTransform: "uppercase",
-                  padding: compact ? "2px 7px" : "3px 9px",
-                  borderRadius: 999,
+                  padding: compact ? "3px 7px" : "4px 8px",
+                  borderRadius: 3,
                   lineHeight: 1.3,
-                  boxShadow: "0 2px 6px rgba(0,0,0,0.12)",
+                  fontVariantNumeric: "tabular-nums",
+                }}
+              >
+                −{savePct}%
+              </span>
+            ) : (
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 5,
+                  background: "rgba(255,255,255,0.82)",
+                  backdropFilter: "blur(5px)",
+                  WebkitBackdropFilter: "blur(5px)",
+                  color: "rgba(20,20,20,0.85)",
+                  fontSize: compact ? 9 : 9.5,
+                  fontWeight: 600,
+                  letterSpacing: "1px",
+                  textTransform: "uppercase",
+                  padding: compact ? "3px 8px" : "4px 9px",
+                  borderRadius: 3,
+                  lineHeight: 1.3,
                   whiteSpace: "nowrap",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   maxWidth: "100%",
                 }}
               >
-                {t.name}
+                {product.tags![0].color && (
+                  <span style={{ width: 6, height: 6, borderRadius: 999, background: product.tags![0].color!, flexShrink: 0 }} />
+                )}
+                {product.tags![0].name}
               </span>
-            ))}
+            )}
           </div>
         )}
-        {showQuickAdd && (
+
+        {/* sold out — the photo dims to grey with one centred chip */}
+        {soldOut && (
+          <div style={{ position: "absolute", inset: 0, zIndex: 3, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ background: "rgba(255,255,255,0.9)", backdropFilter: "blur(5px)", WebkitBackdropFilter: "blur(5px)", padding: compact ? "6px 12px" : "8px 16px", borderRadius: 3, fontSize: compact ? 10 : 11, fontWeight: 600, letterSpacing: "1.6px", textTransform: "uppercase", color: "rgba(20,20,20,0.8)" }}>
+              Sold out
+            </span>
+          </div>
+        )}
+
+        {showQuickAdd && !soldOut && (
           <motion.div
             initial={false}
             animate={{ opacity: hover ? 1 : 0, y: hover ? 0 : 8 }}
@@ -173,16 +250,89 @@ const ProductCard = forwardRef<HTMLDivElement, ProductCardProps>(function Produc
           </motion.div>
         )}
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: compact ? 10 : 14, gap: 8 }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: compact ? 14 : 17, fontWeight: 500, letterSpacing: "-0.3px", color: TEXT_COLOR, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            <Highlight text={product.name} q={query} />
+
+      {/* info block — name, price row, colourways */}
+      <div style={{ marginTop: compact ? 9 : 12 }}>
+        <div style={{ fontSize: compact ? 13 : 14.5, fontWeight: 500, letterSpacing: "-0.2px", color: TEXT_COLOR, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <Highlight text={product.name} q={query} />
+        </div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 7, marginTop: 3 }}>
+          <span style={{ fontSize: compact ? 13 : 14.5, fontWeight: 500, color: onSale ? SALE_RED : TEXT_COLOR, fontVariantNumeric: "tabular-nums" }}>
+            {fmt(product.price)}
+          </span>
+          {onSale && (
+            <span style={{ fontSize: compact ? 11 : 12, color: "rgba(84,84,84,0.5)", textDecoration: "line-through", fontVariantNumeric: "tabular-nums" }}>
+              {fmt(product.compareAtPrice as number)}
+            </span>
+          )}
+        </div>
+
+        {/* colourways — variant photos when they exist, swatch dots otherwise */}
+        {colorways.length > 1 && (
+          <div style={{ display: "flex", alignItems: "center", gap: hasColorImages ? 5 : 7, marginTop: compact ? 6 : 8 }}>
+            {colorways.slice(0, maxSwatches).map((c, i) => {
+              const selected = activeColor === i;
+              const pick = (e: React.MouseEvent) => {
+                e.stopPropagation();
+                setActiveColor(selected ? null : i);
+              };
+              return hasColorImages ? (
+                <button
+                  key={`${c.name}-${i}`}
+                  onClick={pick}
+                  aria-label={c.name}
+                  title={c.name}
+                  style={{
+                    width: compact ? 24 : 28,
+                    height: compact ? 31 : 36, // 3:4, matching the stage
+                    padding: 0,
+                    border: "none",
+                    borderRadius: 3,
+                    overflow: "hidden",
+                    cursor: "pointer",
+                    background: product.panel,
+                    outline: "none",
+                    boxShadow: selected ? "0 0 0 1.5px #141414" : "0 0 0 1px rgba(84,84,84,0.16)",
+                    transition: "box-shadow 0.2s ease",
+                  }}
+                >
+                  {c.image ? (
+                    <img
+                      src={c.image}
+                      alt=""
+                      draggable={false}
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                    />
+                  ) : (
+                    <span style={{ display: "block", width: "100%", height: "100%", background: c.hex || product.panel }} />
+                  )}
+                </button>
+              ) : (
+                <button
+                  key={`${c.name}-${i}`}
+                  onClick={pick}
+                  aria-label={c.name}
+                  title={c.name}
+                  style={{
+                    width: compact ? 11 : 13,
+                    height: compact ? 11 : 13,
+                    padding: 0,
+                    borderRadius: "50%",
+                    border: "none",
+                    cursor: "pointer",
+                    background: c.hex || "#ccc",
+                    boxShadow: selected ? "0 0 0 1.5px #fff, 0 0 0 2.5px #141414" : "0 0 0 1px rgba(84,84,84,0.25)",
+                    transition: "box-shadow 0.2s ease",
+                  }}
+                />
+              );
+            })}
+            {extra > 0 && (
+              <span style={{ fontSize: compact ? 10.5 : 11.5, color: "rgba(84,84,84,0.55)" }}>+{extra}</span>
+            )}
           </div>
-          <div style={{ fontSize: 12, color: "rgba(84,84,84,0.55)", marginTop: 2 }}>{product.category}</div>
-        </div>
-        <div style={{ fontSize: compact ? 13 : 15, fontWeight: 500, color: TEXT_COLOR, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>
-          {fmt(product.price)}
-        </div>
+        )}
       </div>
     </motion.div>
   );
