@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence, useSpring, type PanInfo } from "framer-motion";
-import { useParams, useNavigate, Navigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
+import NotFound from "../pages/NotFound";
 import { TEXT_COLOR, GLOW_COLOR, ASSET, asset } from "../lib/constants";
-import { productImageFile, getGallery } from "../lib/products";
+import { productImageFile, getGallery, isSoldOut, LOW_STOCK_THRESHOLD } from "../lib/products";
 import { useIsMobile } from "../lib/useResponsive";
 import { useProductNav } from "../context/ProductNav";
 import { useCatalog } from "../context/Catalog";
 import { useDeliveryConfig } from "../context/SiteSettings";
 import { useMoney } from "../context/Currency";
 import { useCart, type AddVariant } from "../context/Cart";
+import { useRecentlyViewed } from "../context/RecentlyViewed";
 import FavoriteButton from "./FavoriteButton";
 import Header from "./Header";
 import ProductCard from "./ProductCard";
@@ -530,6 +532,7 @@ export default function ProductPage() {
   const { products, getById, loading: catalogLoading } = useCatalog();
   const { freeOver } = useDeliveryConfig();
   const fmt = useMoney();
+  const { push: pushViewed } = useRecentlyViewed();
   const product = getById(id);
 
   // Stored click origin for the shared-element morph (null on a direct visit).
@@ -622,17 +625,23 @@ export default function ProductPage() {
     };
   }, []);
 
+  // Record the view for the recently-viewed rail.
+  useEffect(() => {
+    if (product) pushViewed(product.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.id]);
+
   // Per-page SEO.
   useEffect(() => {
     if (!product) return;
-    setPageMeta({
+    const token = setPageMeta({
       title: `${product.name} — ${fmt(product.price)} | The A Line`,
       description: product.description,
       image: product.images?.[0] ?? `${ASSET}/${productImageFile(product)}`,
       url: window.location.href,
       type: "product",
     });
-    return () => resetPageMeta();
+    return () => resetPageMeta(token);
   }, [product, fmt]);
 
   // Keyboard UX: Esc closes (lightbox first, then page), ←/→ moves the gallery.
@@ -675,7 +684,9 @@ export default function ProductPage() {
         </div>
       );
     }
-    return <Navigate to="/" replace />;
+    // A retired or mistyped slug is a real dead end — show it as one rather
+    // than bouncing to the homepage, where the piece just looks forgotten.
+    return <NotFound what="product" />;
   }
 
   const hasOrigin = !!origin;
@@ -726,7 +737,28 @@ export default function ProductPage() {
     transition: { duration: 0.55, ease: EASE, delay: (isMobile ? 0.1 : 0.32) + i * 0.07 },
   });
 
-  const related = products.filter((p) => p.id !== product.id).slice(0, 3);
+  // Genuinely related, not just "the first three in the catalog": same
+  // category leads, then pieces sharing a colourway, then the rest as filler.
+  // Sold-out pieces sink to the bottom — never suggest what can't be bought.
+  const related = (() => {
+    const mine = new Set((product.categories ?? []).map((c) => c.slug));
+    const myColors = new Set(product.colors.map((c) => c.name.toLowerCase()));
+    const rank = (p: Product) => {
+      const sameCat =
+        (p.categories ?? []).some((c) => mine.has(c.slug)) ||
+        (!!p.category && p.category === product.category);
+      const sharesColor = p.colors.some((c) => myColors.has(c.name.toLowerCase()));
+      let r = sameCat ? 0 : sharesColor ? 1 : 2;
+      if (isSoldOut(p)) r += 10;
+      return r;
+    };
+    return products
+      .filter((p) => p.id !== product.id)
+      .map((p, i) => ({ p, r: rank(p), i }))
+      .sort((a, b) => a.r - b.r || a.i - b.i)
+      .slice(0, 3)
+      .map((x) => x.p);
+  })();
 
   // ---- variant resolution (Shopify-style) -------------------------------
   const attributes = product.attributes ?? [];
@@ -763,6 +795,20 @@ export default function ProductPage() {
     : product.colors[color]?.hex ?? "";
   const variantUnavailable = hasVariants && (!selectedVariant || selectedVariant.status === "hidden");
   const variantSoldOut = hasVariants && variantStockTracked && !!selectedVariant && selectedVariant.stock <= 0;
+  // Product-level availability. The shop grid already veils these, but the PDP
+  // has to refuse them too — otherwise a sold-out piece walks into the bag and
+  // on to a COD order nobody can fulfil.
+  const soldOut = isSoldOut(product) || variantSoldOut;
+  // How many units may still be ordered: the variant's stock when the merchant
+  // tracks it, else the product's. Untracked stock (undefined) stays uncapped.
+  const stockLeft = variantStockTracked && selectedVariant ? selectedVariant.stock : product.stock;
+  const maxQty = typeof stockLeft === "number" && stockLeft > 0 ? stockLeft : null;
+  // Clamp on read rather than in an effect, so switching to a lower-stock
+  // variant can never leave a stale over-stock quantity on screen.
+  const effQty = maxQty != null ? Math.min(qty, maxQty) : qty;
+  const atMax = maxQty != null && effQty >= maxQty;
+  const bumpQty = (d: number) =>
+    setQty(() => Math.max(1, maxQty != null ? Math.min(maxQty, effQty + d) : effQty + d));
   const addVariant = {
     label: selectedLabel,
     price: unitPrice,
@@ -1011,6 +1057,27 @@ export default function ProductPage() {
             )}
           </motion.div>
 
+          {/* availability — sold out is stated plainly, and a thin stock level
+              nudges without manufacturing panic. */}
+          {(soldOut || (maxQty != null && maxQty <= LOW_STOCK_THRESHOLD)) && (
+            <motion.div
+              {...block(3)}
+              role="status"
+              style={{
+                marginTop: -16,
+                marginBottom: 24,
+                fontSize: 12.5,
+                fontWeight: 500,
+                letterSpacing: "0.2px",
+                color: soldOut ? "rgba(84,84,84,0.7)" : "#c0563f",
+              }}
+            >
+              {soldOut
+                ? "Sold out — this piece is out of stock."
+                : `Only ${maxQty} left in stock.`}
+            </motion.div>
+          )}
+
           {/* variant selectors — one group per attribute (Color, Size, …) */}
           {hasVariants ? (
             <motion.div {...block(4)} style={{ marginBottom: 24, display: "flex", flexDirection: "column", gap: 18 }}>
@@ -1130,15 +1197,26 @@ export default function ProductPage() {
                   padding: "0 6px",
                 }}
               >
-                <button onClick={() => setQty((q) => Math.max(1, q - 1))} style={qtyBtn}>
+                <button
+                  onClick={() => bumpQty(-1)}
+                  disabled={effQty <= 1}
+                  aria-label="Decrease quantity"
+                  style={{ ...qtyBtn, opacity: effQty <= 1 ? 0.35 : 1, cursor: effQty <= 1 ? "default" : "pointer" }}
+                >
                   −
                 </button>
                 <span
                   style={{ width: 26, textAlign: "center", fontSize: 15, fontWeight: 500, color: TEXT_COLOR }}
                 >
-                  {qty}
+                  {effQty}
                 </span>
-                <button onClick={() => setQty((q) => q + 1)} style={qtyBtn}>
+                <button
+                  onClick={() => bumpQty(1)}
+                  disabled={atMax || soldOut}
+                  aria-label="Increase quantity"
+                  title={atMax ? `Only ${maxQty} in stock` : undefined}
+                  style={{ ...qtyBtn, opacity: atMax || soldOut ? 0.35 : 1, cursor: atMax || soldOut ? "default" : "pointer" }}
+                >
                   +
                 </button>
               </div>
@@ -1147,8 +1225,9 @@ export default function ProductPage() {
                 color={{ name: selectedLabel, hex: selectedHex }}
                 variant={hasVariants ? addVariant : undefined}
                 unitPrice={unitPrice}
-                disabled={variantUnavailable || variantSoldOut}
-                qty={qty}
+                disabled={variantUnavailable || soldOut}
+                soldOut={soldOut}
+                qty={effQty}
               />
               <FavoriteButton productId={product.id} variant="outline" size={46} />
             </motion.div>
@@ -1419,9 +1498,19 @@ export default function ProductPage() {
                       Quantity
                     </div>
                     <div style={{ display: "flex", alignItems: "center", border: "1px solid rgba(84,84,84,0.25)", borderRadius: 999, padding: "0 4px", height: 40 }}>
-                      <button onClick={() => setQty((q) => Math.max(1, q - 1))} style={qtyBtn}>−</button>
-                      <span style={{ width: 24, textAlign: "center", fontSize: 14.5, fontWeight: 500, color: TEXT_COLOR, fontVariantNumeric: "tabular-nums" }}>{qty}</span>
-                      <button onClick={() => setQty((q) => q + 1)} style={qtyBtn}>+</button>
+                      <button
+                        onClick={() => bumpQty(-1)}
+                        disabled={effQty <= 1}
+                        aria-label="Decrease quantity"
+                        style={{ ...qtyBtn, opacity: effQty <= 1 ? 0.35 : 1 }}
+                      >−</button>
+                      <span style={{ width: 24, textAlign: "center", fontSize: 14.5, fontWeight: 500, color: TEXT_COLOR, fontVariantNumeric: "tabular-nums" }}>{effQty}</span>
+                      <button
+                        onClick={() => bumpQty(1)}
+                        disabled={atMax || soldOut}
+                        aria-label="Increase quantity"
+                        style={{ ...qtyBtn, opacity: atMax || soldOut ? 0.35 : 1 }}
+                      >+</button>
                     </div>
                   </motion.div>
 
@@ -1470,7 +1559,7 @@ export default function ProductPage() {
                 {selectedHex ? (
                   <span style={{ width: 15, height: 15, borderRadius: "50%", background: selectedHex, boxShadow: "0 0 0 1px rgba(84,84,84,0.25)", flexShrink: 0 }} />
                 ) : (
-                  <span style={{ fontSize: 12.5, fontWeight: 500, color: TEXT_COLOR, fontVariantNumeric: "tabular-nums" }}>×{qty}</span>
+                  <span style={{ fontSize: 12.5, fontWeight: 500, color: TEXT_COLOR, fontVariantNumeric: "tabular-nums" }}>×{effQty}</span>
                 )}
                 <span style={{ fontSize: 12.5, fontWeight: 500, color: TEXT_COLOR, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                   {selectedLabel || "Options"}
@@ -1490,8 +1579,9 @@ export default function ProductPage() {
                 color={{ name: selectedLabel, hex: selectedHex }}
                 variant={hasVariants ? addVariant : undefined}
                 unitPrice={unitPrice}
-                disabled={variantUnavailable || variantSoldOut}
-                qty={qty}
+                disabled={variantUnavailable || soldOut}
+                soldOut={soldOut}
+                qty={effQty}
               />
             </div>
           </motion.div>
@@ -1532,6 +1622,7 @@ function AddToBag({
   variant,
   unitPrice,
   disabled,
+  soldOut,
 }: {
   product: Product;
   color: { name: string; hex: string };
@@ -1539,6 +1630,8 @@ function AddToBag({
   variant?: AddVariant;
   unitPrice?: number;
   disabled?: boolean;
+  /** Out of stock rather than an unbuildable option combination. */
+  soldOut?: boolean;
 }) {
   const x = useSpring(0, { stiffness: 200, damping: 14 });
   const y = useSpring(0, { stiffness: 200, damping: 14 });
@@ -1584,7 +1677,13 @@ function AddToBag({
         whiteSpace: "nowrap",
       }}
     >
-      {disabled ? "Unavailable" : added ? "Added to bag ✓" : `Add to bag — ${fmt(price * qty)}`}
+      {soldOut
+        ? "Sold out"
+        : disabled
+        ? "Unavailable"
+        : added
+        ? "Added to bag ✓"
+        : `Add to bag — ${fmt(price * qty)}`}
     </motion.button>
   );
 }

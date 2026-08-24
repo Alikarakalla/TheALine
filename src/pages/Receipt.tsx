@@ -82,12 +82,12 @@ export default function Receipt() {
   }, [number, ctxOrder]);
 
   useEffect(() => {
-    setPageMeta({
+    const __metaToken = setPageMeta({
       title: order ? `Receipt ${order.number} | The A Line` : "Receipt | The A Line",
       description: "Your The A Line order receipt.",
       url: window.location.href,
     });
-    return () => resetPageMeta();
+    return () => resetPageMeta(__metaToken);
   }, [order]);
 
   if (loading) {

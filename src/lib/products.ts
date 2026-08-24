@@ -68,7 +68,17 @@ export type Product = {
 };
 
 export const LOW_STOCK_THRESHOLD = 5;
-export const isSoldOut = (p: Product) => (p.stock ?? 99) <= 0;
+/**
+ * Is the piece unbuyable?
+ *
+ * A merchant who tracks stock per variant often leaves the product-level
+ * number at 0, so check the variants first: any variant with stock means the
+ * product is buyable, whatever the unused product-level figure says.
+ */
+export const isSoldOut = (p: Product) => {
+  if ((p.variants ?? []).some((v) => v.stock > 0)) return false;
+  return (p.stock ?? 99) <= 0;
+};
 export const isLowStock = (p: Product) =>
   (p.stock ?? 99) > 0 && (p.stock ?? 99) <= LOW_STOCK_THRESHOLD;
 

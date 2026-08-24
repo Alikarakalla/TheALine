@@ -3,6 +3,7 @@ import { motion, useSpring, useInView } from "framer-motion";
 import SerifGlow from "./SerifGlow";
 import { GLOW_COLOR, PAGE_MAX, PAGE_PAD } from "../lib/constants";
 import { useHomepage } from "../context/HomepageContent";
+import { useSiteSettings } from "../context/SiteSettings";
 
 function MagneticButton() {
   const x = useSpring(0, { stiffness: 200, damping: 14 });
@@ -45,10 +46,21 @@ function MagneticButton() {
 
 export default function Footer() {
   const { footer } = useHomepage();
+  const { settings } = useSiteSettings();
   // Only run the marquee's infinite loop while the footer is on screen — it sits
   // at the very bottom, so otherwise it burns frame budget the whole session.
   const marqueeRef = useRef<HTMLDivElement>(null);
   const marqueeInView = useInView(marqueeRef, { margin: "150px" });
+
+  // Only render a link that actually goes somewhere. Socials come from site
+  // settings (unset = hidden) rather than shipping href="#" placeholders that
+  // look clickable and do nothing.
+  const site = settings.site ?? {};
+  const links: { label: string; href: string; external?: boolean }[] = [
+    ...(site.instagram_url ? [{ label: "Instagram", href: String(site.instagram_url), external: true }] : []),
+    ...(site.pinterest_url ? [{ label: "Pinterest", href: String(site.pinterest_url), external: true }] : []),
+    ...(site.support_email ? [{ label: "Contact", href: `mailto:${site.support_email}` }] : []),
+  ];
   return (
     <footer
       data-tone="dark"
@@ -195,10 +207,11 @@ export default function Footer() {
           © 2026 THE A LINE
         </span>
         <div style={{ display: "flex", gap: 28 }}>
-          {["Instagram", "Pinterest", "Contact", "Privacy"].map((l) => (
+          {links.map((l) => (
             <a
-              key={l}
-              href="#"
+              key={l.label}
+              href={l.href}
+              {...(l.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
               className="transition-opacity duration-200 hover:opacity-100"
               style={{
                 fontSize: 13,
@@ -207,7 +220,7 @@ export default function Footer() {
                 textDecoration: "none",
               }}
             >
-              {l}
+              {l.label}
             </a>
           ))}
         </div>

@@ -19,6 +19,7 @@ import {
 } from "../lib/constants";
 import { useIsMobile } from "../lib/useResponsive";
 import { useCart } from "../context/Cart";
+import { useSiteSettings } from "../context/SiteSettings";
 import { useSearch } from "../context/Search";
 import { useAuth } from "../context/Auth";
 import { useFavorites } from "../context/Favorites";
@@ -26,8 +27,27 @@ import { useCatalog, type CategoryNode } from "../context/Catalog";
 
 type Tone = "light" | "dark";
 
-const MENU = ["Catalog", "Favorites", "Account", "About", "Cart (0)"];
-const SOCIALS = ["Instagram", "Pinterest", "Contact"];
+/** Overlay-menu entries. `Bag` renders with the live item count appended. */
+const MENU: { label: string; to: string; bag?: boolean }[] = [
+  { label: "Catalog", to: "/shop" },
+  { label: "Favorites", to: "/favorites" },
+  { label: "Account", to: "/account" },
+  { label: "About", to: "/#our-craft" },
+  { label: "Bag", to: "/cart", bag: true },
+];
+/**
+ * Footer/menu links, built from site settings. A social link with no URL
+ * configured is omitted rather than rendered as an href="#" that goes nowhere.
+ */
+function useSocialLinks(): { label: string; href: string; external?: boolean }[] {
+  const { settings } = useSiteSettings();
+  const site = settings.site ?? {};
+  return [
+    ...(site.instagram_url ? [{ label: "Instagram", href: String(site.instagram_url), external: true }] : []),
+    ...(site.pinterest_url ? [{ label: "Pinterest", href: String(site.pinterest_url), external: true }] : []),
+    ...(site.support_email ? [{ label: "Contact", href: `mailto:${site.support_email}` }] : []),
+  ];
+}
 
 /** Small glowing heart, inline so it stays visible on any background. */
 function HeartGlow({ size = 13 }: { size?: number }) {
@@ -355,7 +375,8 @@ function MobileMenuBody({
   onCat,
   onCol,
 }: {
-  onGo: (label: string) => void;
+  /** Navigate to a path (may carry a "#anchor"). */
+  onGo: (to: string) => void;
   onCat: (slug?: string) => void;
   onCol: (slug: string) => void;
 }) {
@@ -383,12 +404,7 @@ function MobileMenuBody({
     </motion.span>
   );
 
-  const primary: { label: string; extra?: string }[] = [
-    { label: "Catalog" },
-    { label: "Favorites" },
-    { label: "Account" },
-    { label: "About" },
-  ];
+  const primary = MENU.filter((m) => !m.bag);
 
   const renderChildren = (nodes: CategoryNode[], depth: number): React.ReactNode =>
     nodes.map((n) => (
@@ -429,7 +445,7 @@ function MobileMenuBody({
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1], delay: 0.3 + i * 0.06 }}
-            onClick={() => onGo(item.label)}
+            onClick={() => onGo(item.to)}
             style={{
               display: "flex",
               alignItems: "center",
@@ -453,7 +469,7 @@ function MobileMenuBody({
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1], delay: 0.3 + primary.length * 0.06 }}
-          onClick={() => onGo("Cart (0)")}
+          onClick={() => onGo("/cart")}
           style={{
             display: "flex",
             alignItems: "center",
@@ -580,8 +596,21 @@ function OverlayMenu({ onClose }: { onClose: () => void }) {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const { categoryTree, categoryNodes, collections } = useCatalog();
-  const go = (label: string) => {
-    if (ROUTE_FOR[label]) navigate(ROUTE_FOR[label]);
+  const { count: bagCount } = useCart();
+  const socialLinks = useSocialLinks();
+  /** Navigate by path; a "/#anchor" scrolls to that section on the homepage. */
+  const goTo = (to: string) => {
+    const [path, hash] = to.split("#");
+    navigate(path || "/");
+    if (hash) {
+      // Let the destination render before hunting for the anchor.
+      requestAnimationFrame(() =>
+        setTimeout(
+          () => document.getElementById(hash)?.scrollIntoView({ behavior: "smooth", block: "start" }),
+          80
+        )
+      );
+    }
     onClose();
   };
   const goCat = (slug?: string) => {
@@ -675,14 +704,19 @@ function OverlayMenu({ onClose }: { onClose: () => void }) {
         }}
       >
         {isMobile ? (
-          <MobileMenuBody onGo={go} onCat={goCat} onCol={goCol} />
+          <MobileMenuBody onGo={goTo} onCat={goCat} onCol={goCol} />
         ) : (
         <>
         {/* nav words + category tree */}
         <div style={{ display: "flex", flexDirection: "column", gap: 24, minWidth: 0 }}>
           <nav style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {MENU.map((item, i) => (
-              <MenuWord key={item} label={item} index={i} onClose={() => go(item)} />
+              <MenuWord
+                key={item.label}
+                label={item.bag && bagCount > 0 ? `${item.label} (${bagCount})` : item.label}
+                index={i}
+                onClose={() => goTo(item.to)}
+              />
             ))}
           </nav>
 
@@ -799,10 +833,11 @@ function OverlayMenu({ onClose }: { onClose: () => void }) {
           paddingTop: 24,
         }}
       >
-        {SOCIALS.map((s) => (
+        {socialLinks.map((s) => (
           <a
-            key={s}
-            href="#"
+            key={s.label}
+            href={s.href}
+            {...(s.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
             style={{
               fontSize: 13,
               fontWeight: 400,
@@ -810,7 +845,7 @@ function OverlayMenu({ onClose }: { onClose: () => void }) {
               textDecoration: "none",
             }}
           >
-            {s}
+            {s.label}
           </a>
         ))}
       </motion.div>
@@ -861,13 +896,6 @@ function MenuWord({
     </div>
   );
 }
-
-const ROUTE_FOR: Record<string, string> = {
-  Catalog: "/shop",
-  Favorites: "/favorites",
-  "Cart (0)": "/cart",
-  Account: "/account",
-};
 
 /** Recursive list of sub-categories inside a mega-menu column. */
 function CatSubList({

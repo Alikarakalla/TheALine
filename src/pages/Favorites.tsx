@@ -22,12 +22,12 @@ export default function Favorites() {
   const { byId } = useCatalog();
 
   useEffect(() => {
-    setPageMeta({
+    const __metaToken = setPageMeta({
       title: "Favorites | The A Line",
       description: "The pieces you've saved.",
       url: window.location.origin + "/favorites",
     });
-    return () => resetPageMeta();
+    return () => resetPageMeta(__metaToken);
   }, []);
 
   const products = useMemo(

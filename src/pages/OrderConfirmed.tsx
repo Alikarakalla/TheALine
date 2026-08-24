@@ -21,12 +21,12 @@ export default function OrderConfirmed() {
   const order = (num && getOrder(num)) || orders[0] || null;
 
   useEffect(() => {
-    setPageMeta({
+    const __metaToken = setPageMeta({
       title: "Order confirmed | The A Line",
       description: "Thank you for your order.",
       url: window.location.origin + "/order-confirmed",
     });
-    return () => resetPageMeta();
+    return () => resetPageMeta(__metaToken);
   }, []);
 
   if (!order) return <Navigate to="/" replace />;

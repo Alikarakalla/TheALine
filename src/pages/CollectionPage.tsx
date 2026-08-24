@@ -35,14 +35,13 @@ export default function CollectionPage() {
   }, [slug]);
 
   useEffect(() => {
-    if (data) {
-      setPageMeta({
-        title: `${data.title} | The A Line`,
-        description: data.description || `Shop the ${data.title} collection.`,
-        url: window.location.href,
-      });
-    }
-    return () => resetPageMeta();
+    if (!data) return;
+    const token = setPageMeta({
+      title: `${data.title} | The A Line`,
+      description: data.description || `Shop the ${data.title} collection.`,
+      url: window.location.href,
+    });
+    return () => resetPageMeta(token);
   }, [data]);
 
   // Map the collection's product slugs onto the live catalog.

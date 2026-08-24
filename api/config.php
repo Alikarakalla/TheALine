@@ -37,7 +37,10 @@ return [
     'jwt_ttl'       => (int) Env::get('JWT_TTL', (string) (60 * 60 * 24 * 7)),
     // Uploaded files live next to the API and are served by Apache directly.
     'upload_dir'    => __DIR__ . DIRECTORY_SEPARATOR . 'uploads',
-    'upload_url'    => rtrim(Env::get('UPLOAD_URL', 'http://localhost/lovebag/api/uploads'), '/'),
+    // Root-relative by default: an unset/stale UPLOAD_URL then resolves against
+    // whatever origin serves the page instead of baking a dev host into stored
+    // image URLs (which is how localhost URLs reached production rows).
+    'upload_url'    => rtrim(Env::get('UPLOAD_URL', '/api/uploads'), '/'),
     'api_base'      => rtrim(Env::get('API_BASE', 'http://localhost/lovebag/api'), '/'),
     // URL path the API is mounted at. '' = auto-detect from the front controller.
     'api_base_path' => Env::get('API_BASE_PATH', ''),

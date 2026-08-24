@@ -44,12 +44,12 @@ export default function ResetPassword() {
       : undefined;
 
   useEffect(() => {
-    setPageMeta({
+    const __metaToken = setPageMeta({
       title: "Set a new password | The A Line",
       description: "Choose a new password for your The A Line account.",
       url: window.location.origin + "/reset-password",
     });
-    return () => resetPageMeta();
+    return () => resetPageMeta(__metaToken);
   }, []);
 
   const submit = async (e: React.FormEvent) => {

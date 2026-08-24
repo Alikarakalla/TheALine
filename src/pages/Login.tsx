@@ -30,12 +30,12 @@ export default function Login() {
   const errPwd = touched.pwd && pwd.length === 0 ? "Enter your password." : undefined;
 
   useEffect(() => {
-    setPageMeta({
+    const __metaToken = setPageMeta({
       title: "Sign in | The A Line",
       description: "Sign in to your The A Line account.",
       url: window.location.origin + "/login",
     });
-    return () => resetPageMeta();
+    return () => resetPageMeta(__metaToken);
   }, []);
 
   const submit = async (e: React.FormEvent) => {

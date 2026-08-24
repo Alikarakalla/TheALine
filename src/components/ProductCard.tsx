@@ -55,7 +55,7 @@ export type ProductCardProps = {
  * a sold-out veil, and colourway thumbnails under the price that swap the
  * card's photo in place.
  */
-const ProductCard = forwardRef<HTMLDivElement, ProductCardProps>(function ProductCard(
+const ProductCard = forwardRef<HTMLAnchorElement, ProductCardProps>(function ProductCard(
   {
     product,
     index = 0,
@@ -103,15 +103,23 @@ const ProductCard = forwardRef<HTMLDivElement, ProductCardProps>(function Produc
   const extra = Math.max(0, colorways.length - maxSwatches);
 
   const handleClick = (e: React.MouseEvent) => {
+    // Let the browser own modified clicks (new tab/window, download) — this is
+    // a real link, so cmd/ctrl/shift-click and middle-click must keep working.
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     const el = (e.currentTarget as HTMLElement).querySelector("img") as HTMLImageElement | null;
     if (!el) return;
+    e.preventDefault();
     if (onSelect) onSelect(product, el);
     else open(product, el, img);
   };
 
   return (
-    <motion.div
+    // A real <a href> — the card used to be a click-handler div, so keyboard
+    // users could not reach any product and nobody could open one in a new tab.
+    // The morph still runs for plain clicks; the href is the fallback.
+    <motion.a
       ref={ref}
+      href={`/product/${product.id}`}
       layout
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -119,9 +127,19 @@ const ProductCard = forwardRef<HTMLDivElement, ProductCardProps>(function Produc
       transition={{ duration: 0.5, ease: EASE, delay: baseDelay + Math.min(index * 0.05, 0.4) }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
+      // Capture phase: a click on any control inside the card (favourite heart,
+      // colour swatch) must not follow the card's href. Those handlers call
+      // stopPropagation, so a bubble-phase guard here would never see the
+      // event — capture runs first and cancels the navigation regardless.
+      onClickCapture={(e) => {
+        if ((e.target as HTMLElement).closest("button")) e.preventDefault();
+      }}
       onClick={handleClick}
       style={{
         cursor: "pointer",
+        display: "block",
+        color: "inherit",
+        textDecoration: "none",
         width: "100%",
         background: highlighted ? "rgba(0,0,0,0.03)" : "transparent",
         border: highlighted ? "1px solid #141414" : "1px solid transparent",
@@ -159,7 +177,13 @@ const ProductCard = forwardRef<HTMLDivElement, ProductCardProps>(function Produc
         )}
 
         {showFavorite && (
-          <div style={{ position: "absolute", top: 10, right: 10, zIndex: 4 }} onClick={(e) => e.stopPropagation()}>
+          <div
+            style={{ position: "absolute", top: 10, right: 10, zIndex: 4 }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+          >
             <FavoriteButton productId={product.id} size={compact ? 30 : 34} />
           </div>
         )}
@@ -273,6 +297,9 @@ const ProductCard = forwardRef<HTMLDivElement, ProductCardProps>(function Produc
             {colorways.slice(0, maxSwatches).map((c, i) => {
               const selected = activeColor === i;
               const pick = (e: React.MouseEvent) => {
+                // Inside the card's <a>: block the browser's own link
+                // activation too, or picking a colour would navigate away.
+                e.preventDefault();
                 e.stopPropagation();
                 setActiveColor(selected ? null : i);
               };
@@ -334,7 +361,7 @@ const ProductCard = forwardRef<HTMLDivElement, ProductCardProps>(function Produc
           </div>
         )}
       </div>
-    </motion.div>
+    </motion.a>
   );
 });
 

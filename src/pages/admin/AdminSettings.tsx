@@ -123,6 +123,11 @@ export default function AdminSettings() {
           <div><label style={labelS}>Free delivery over ({base.symbol})</label><input inputMode="decimal" value={site.free_ship_threshold || ""} onChange={(e) => setSite((s) => ({ ...s, free_ship_threshold: e.target.value.replace(/[^\d.]/g, "") }))} style={inputS} placeholder="100" /></div>
           <div style={{ gridColumn: "1 / -1" }}><label style={labelS}>Tagline</label><input value={site.tagline || ""} onChange={(e) => setSite((s) => ({ ...s, tagline: e.target.value }))} style={inputS} /></div>
           <div style={{ gridColumn: "1 / -1" }}><label style={labelS}>Announcement bar</label><input value={site.announcement || ""} onChange={(e) => setSite((s) => ({ ...s, announcement: e.target.value }))} style={inputS} /></div>
+          {/* Storefront footer/menu links. Left blank, the link is hidden
+              rather than rendered as a dead placeholder. */}
+          <div><label style={labelS}>Support email</label><input type="email" value={site.support_email || ""} onChange={(e) => setSite((s) => ({ ...s, support_email: e.target.value }))} style={inputS} placeholder="care@yourdomain.com" /></div>
+          <div><label style={labelS}>Instagram URL</label><input value={site.instagram_url || ""} onChange={(e) => setSite((s) => ({ ...s, instagram_url: e.target.value }))} style={inputS} placeholder="https://instagram.com/…" /></div>
+          <div><label style={labelS}>Pinterest URL</label><input value={site.pinterest_url || ""} onChange={(e) => setSite((s) => ({ ...s, pinterest_url: e.target.value }))} style={inputS} placeholder="https://pinterest.com/…" /></div>
         </div>
       </div>
 

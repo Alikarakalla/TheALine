@@ -26,13 +26,24 @@ function setCanonical(url: string) {
   link.href = url;
 }
 
+/**
+ * Which mount currently owns the document head.
+ *
+ * Pages overlay each other (a product opens on top of the page that launched
+ * it, and switching products cross-fades two ProductPages), so the OUTGOING
+ * page's cleanup runs *after* the incoming one has already set its own title.
+ * Each setPageMeta() claims a fresh token; resetPageMeta() only reverts when
+ * the caller still holds it, so a stale unmount can't clobber the live title.
+ */
+let metaOwner = 0;
+
 export function setPageMeta(opts: {
   title: string;
   description: string;
   image?: string;
   url?: string;
   type?: string;
-}) {
+}): number {
   const url = opts.url ?? window.location.href;
   document.title = opts.title;
   upsertMeta("name", "description", opts.description);
@@ -48,9 +59,16 @@ export function setPageMeta(opts: {
   upsertMeta("name", "twitter:title", opts.title);
   upsertMeta("name", "twitter:description", opts.description);
   setCanonical(url);
+  return ++metaOwner;
 }
 
-export function resetPageMeta() {
+/**
+ * Restore the site defaults — but only if `token` (from the matching
+ * setPageMeta call) is still the current owner. Called without a token it
+ * resets unconditionally, for genuine teardown.
+ */
+export function resetPageMeta(token?: number) {
+  if (token != null && token !== metaOwner) return;
   setPageMeta({
     title: DEFAULT_TITLE,
     description: DEFAULT_DESC,

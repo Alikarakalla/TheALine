@@ -50,6 +50,7 @@ import ResetPassword from "./pages/ResetPassword";
 import Favorites from "./pages/Favorites";
 import Receipt from "./pages/Receipt";
 import Rewards from "./pages/Rewards";
+import NotFound from "./pages/NotFound";
 import AccountLayout from "./components/account/AccountLayout";
 import AccountOverview from "./components/account/AccountOverview";
 import OrdersPage from "./components/account/OrdersPage";
@@ -135,6 +136,12 @@ function AppRoutes() {
           <Route path="currencies" element={<AdminCurrencies />} />
           <Route path="settings" element={<AdminSettings />} />
         </Route>
+
+        {/* Anything else is a genuine dead end — say so instead of quietly
+            landing the visitor on the homepage. `/product/*` is excluded: the
+            product overlay owns those and renders its own not-found. */}
+        <Route path="/product/*" element={null} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
 
       <ProductOutlet />

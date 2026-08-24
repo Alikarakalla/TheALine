@@ -97,7 +97,7 @@ class ProductsController
             $imgs = $v['images'] ? json_decode($v['images'], true) : null;
             if (!is_array($imgs)) $imgs = [];
             if (!empty($v['image_url'])) array_unshift($imgs, $v['image_url']);
-            $imgs = array_values(array_unique(array_filter($imgs)));
+            $imgs = Util::mediaUrls(array_unique(array_filter($imgs)));
             return [
                 'id' => (int) $v['id'],
                 'sku' => $v['sku'],
@@ -147,7 +147,6 @@ class ProductsController
             'sku' => $p['sku'],
             'price' => (float) $p['price'],
             'compareAtPrice' => $p['compare_at_price'] !== null ? (float) $p['compare_at_price'] : null,
-            'costPrice' => $p['cost_price'] !== null ? (float) $p['cost_price'] : null,
             'brandId' => $brand ? (int) $brand['id'] : null,
             'brand' => $brand['name'] ?? null,
             'tags' => array_map(fn($t) => ['id' => (int) $t['id'], 'name' => $t['name'], 'slug' => $t['slug'], 'color' => $t['color'] ?? null], $tags),
@@ -169,13 +168,27 @@ class ProductsController
             // `images` stays a flat URL list for the storefront — the standalone
             // main image (products.main_image, lebazone-style) leads, then the
             // gallery; `media` carries alt text for the admin editor.
-            'images' => array_values(array_unique(array_filter([
+            'images' => Util::mediaUrls(array_unique([
                 ...(!empty($p['main_image']) ? [$p['main_image']] : []),
                 ...array_map(fn($im) => $im['url'], $images),
-            ]))),
-            'media' => array_map(fn($im) => ['url' => $im['url'], 'alt' => $im['alt']], $images),
+            ])),
+            'media' => array_map(fn($im) => ['url' => Util::mediaUrl($im['url']), 'alt' => $im['alt']], $images),
+            // Copy the storefront renders on every product card and PDP. These
+            // ride the list endpoint too — the storefront hydrates its whole
+            // catalog from it and never re-fetches per product, so gating them
+            // behind $full left every "Details"/"Materials" accordion empty.
+            'description' => $p['description'] ?? '',
+            'details' => $p['details'] ?? '',
+            'materials' => $p['materials'] ?? '',
+            'care' => $p['care'] ?? '',
+            'dimensions' => $p['dimensions'] ?? '',
+            'weight' => $p['weight'] ?? '',
+            'fit' => $p['fit'] ?? '',
         ];
         if ($full) {
+            // Margin data is admin-only — never in the public payload.
+            $out['costPrice'] = $p['cost_price'] !== null ? (float) $p['cost_price'] : null;
+            $out['shortDescription'] = $p['short_description'] ?? '';
             $seo = Database::one("SELECT meta_title, meta_description, og_image_url, canonical_url, keywords FROM product_seo WHERE product_id=?", [$id]);
             $optRows = Database::all(
                 "SELECT pvo.option_id FROM product_variants pv JOIN product_variant_options pvo ON pvo.variant_id=pv.id WHERE pv.product_id=?",
@@ -183,13 +196,6 @@ class ProductsController
             );
             $out['variantOptionIds'] = array_values(array_unique(array_map(fn($r) => (int) $r['option_id'], $optRows)));
             $out += [
-                'description' => $p['description'],
-                'details' => $p['details'],
-                'materials' => $p['materials'],
-                'care' => $p['care'],
-                'dimensions' => $p['dimensions'],
-                'weight' => $p['weight'],
-                'fit' => $p['fit'],
                 'seo' => [
                     'metaTitle' => $seo['meta_title'] ?? null,
                     'metaDescription' => $seo['meta_description'] ?? null,

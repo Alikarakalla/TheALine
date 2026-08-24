@@ -10,6 +10,8 @@ import { useCatalog } from "../context/Catalog";
 import { useFavorites } from "../context/Favorites";
 import { useDeliveryConfig } from "../context/SiteSettings";
 import { useMoney } from "../context/Currency";
+import { useRecentlyViewed } from "../context/RecentlyViewed";
+import { isSoldOut } from "../lib/products";
 import { setPageMeta, resetPageMeta } from "../lib/meta";
 
 /**
@@ -30,7 +32,16 @@ const microLabel: React.CSSProperties = {
   textTransform: "uppercase",
 };
 
-function QtyStepper({ qty, onChange }: { qty: number; onChange: (q: number) => void }) {
+function QtyStepper({
+  qty,
+  onChange,
+  max,
+}: {
+  qty: number;
+  onChange: (q: number) => void;
+  /** Units still in stock; null when the merchant doesn't track it. */
+  max?: number | null;
+}) {
   const btn: React.CSSProperties = {
     width: 30,
     height: 32,
@@ -42,11 +53,21 @@ function QtyStepper({ qty, onChange }: { qty: number; onChange: (q: number) => v
     color: TEXT_COLOR,
     lineHeight: 1,
   };
+  const atMin = qty <= 1;
+  const atMax = max != null && qty >= max;
+  const dim = (off: boolean): React.CSSProperties =>
+    off ? { ...btn, opacity: 0.3, cursor: "default" } : btn;
   return (
     <div style={{ display: "inline-flex", alignItems: "center", border: "1px solid rgba(84,84,84,0.25)", borderRadius: 999, padding: "0 2px", height: 34 }}>
-      <button style={btn} onClick={() => onChange(Math.max(1, qty - 1))} aria-label="Decrease quantity">−</button>
+      <button style={dim(atMin)} disabled={atMin} onClick={() => onChange(qty - 1)} aria-label="Decrease quantity">−</button>
       <span style={{ width: 22, textAlign: "center", fontSize: 13.5, fontWeight: 500, color: TEXT_COLOR, fontVariantNumeric: "tabular-nums" }}>{qty}</span>
-      <button style={btn} onClick={() => onChange(qty + 1)} aria-label="Increase quantity">+</button>
+      <button
+        style={dim(atMax)}
+        disabled={atMax}
+        title={atMax ? `Only ${max} in stock` : undefined}
+        onClick={() => onChange(qty + 1)}
+        aria-label="Increase quantity"
+      >+</button>
     </div>
   );
 }
@@ -81,13 +102,25 @@ function LineItem({ item, index }: { item: CartItem; index: number }) {
 
   // Sale context for this line: the matching variant's compare-at (by SKU,
   // then by label) falls back to the product-level compare-at.
-  const compareAt = useMemo(() => {
-    const v =
+  const matchedVariant = useMemo(
+    () =>
       (item.sku && product?.variants?.find((vt) => vt.sku === item.sku)) ||
-      product?.variants?.find((vt) => vt.name === item.colorName);
-    const c = v?.compareAtPrice ?? product?.compareAtPrice ?? null;
+      product?.variants?.find((vt) => vt.name === item.colorName) ||
+      null,
+    [product, item.sku, item.colorName]
+  );
+  const compareAt = useMemo(() => {
+    const c = matchedVariant?.compareAtPrice ?? product?.compareAtPrice ?? null;
     return c != null && c > item.price ? c : null;
-  }, [product, item.sku, item.colorName, item.price]);
+  }, [matchedVariant, product, item.price]);
+
+  // Stock ceiling for this line, mirroring the PDP: per-variant when tracked,
+  // else the product's own. Catalog may still be loading — leave uncapped then.
+  const variantStockTracked = (product?.variants ?? []).some((v) => v.stock > 0);
+  const stockLeft = variantStockTracked && matchedVariant ? matchedVariant.stock : product?.stock;
+  const maxQty = typeof stockLeft === "number" && stockLeft > 0 ? stockLeft : null;
+  const overStock = maxQty != null && item.qty > maxQty;
+  const outOfStock = !!product && isSoldOut(product);
 
   return (
     <motion.div
@@ -135,8 +168,48 @@ function LineItem({ item, index }: { item: CartItem; index: number }) {
           </div>
         </div>
 
+        {/* stock reality check — a line saved days ago can outlive its stock */}
+        {(outOfStock || overStock) && (
+          <div
+            role="status"
+            style={{
+              marginTop: 10,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              flexWrap: "wrap",
+              fontSize: 12,
+              color: "#c0563f",
+            }}
+          >
+            <span>
+              {outOfStock
+                ? "Out of stock — remove it to check out."
+                : `Only ${maxQty} left — reduce to continue.`}
+            </span>
+            {overStock && !outOfStock && (
+              <button
+                onClick={() => setQty(item.id, maxQty as number)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  cursor: "pointer",
+                  fontFamily: "'Inter Tight', sans-serif",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: TEXT_COLOR,
+                  textDecoration: "underline",
+                }}
+              >
+                Set to {maxQty}
+              </button>
+            )}
+          </div>
+        )}
+
         <div style={{ marginTop: "auto", paddingTop: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-          <QtyStepper qty={item.qty} onChange={(q) => setQty(item.id, q)} />
+          <QtyStepper qty={item.qty} max={maxQty} onChange={(q) => setQty(item.id, q)} />
           <div style={{ display: "flex", gap: 14 }}>
             <button
               onClick={moveToFavorites}
@@ -227,20 +300,32 @@ export default function Cart() {
   const { products } = useCatalog();
   const { fee, freeOver } = useDeliveryConfig();
   const fmt = useMoney();
+  const { ids: viewedIds } = useRecentlyViewed();
 
   useEffect(() => {
-    setPageMeta({ title: "Your bag | The A Line", description: "Review the pieces in your bag and check out with cash on delivery across Lebanon." });
-    return () => resetPageMeta();
+    const __metaToken = setPageMeta({ title: "Your bag | The A Line", description: "Review the pieces in your bag and check out with cash on delivery across Lebanon." });
+    return () => resetPageMeta(__metaToken);
   }, []);
 
   const deliveryFree = fee <= 0 || (freeOver > 0 && subtotal >= freeOver);
   const total = subtotal + (deliveryFree ? 0 : fee);
 
-  // Cross-sell: catalog products not already in the bag.
+  // Cross-sell: pieces not already in the bag, led by the ones this shopper
+  // actually looked at (most recent first), then the rest of the catalog.
+  // Sold-out pieces sink — suggesting what can't be bought helps nobody.
   const suggestions = useMemo(() => {
     const inBag = new Set(items.map((i) => i.productId));
-    return products.filter((p) => !inBag.has(p.id)).slice(0, isMobile ? 6 : 4);
-  }, [products, items, isMobile]);
+    const seenAt = new Map(viewedIds.map((id, i) => [id, i]));
+    return products
+      .filter((p) => !inBag.has(p.id))
+      .map((p, i) => ({
+        p,
+        rank: (isSoldOut(p) ? 100 : 0) + (seenAt.has(p.id) ? seenAt.get(p.id)! : 50 + i),
+      }))
+      .sort((a, b) => a.rank - b.rank)
+      .slice(0, isMobile ? 6 : 4)
+      .map((x) => x.p);
+  }, [products, items, isMobile, viewedIds]);
 
   const empty = items.length === 0;
   const count = items.reduce((n, i) => n + i.qty, 0);

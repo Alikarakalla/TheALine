@@ -549,13 +549,13 @@ export default function Shop() {
   const bySlug = useMemo(() => indexBySlug(categoryTree), [categoryTree]);
 
   useEffect(() => {
-    setPageMeta({
+    const __metaToken = setPageMeta({
       title: "Shop all bags | The A Line",
       description:
         "Browse the full The A Line collection — totes, clutches, shoulder bags and crossbodies. Filter by category, colour and price.",
       url: window.location.origin + "/shop",
     });
-    return () => resetPageMeta();
+    return () => resetPageMeta(__metaToken);
   }, []);
 
   // Preselect a category from the URL (?category=slug), e.g. from the header

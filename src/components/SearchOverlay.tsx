@@ -27,19 +27,33 @@ function loadRecent(): string[] {
   }
 }
 
+/**
+ * Case- and accent-insensitive search key. Without the diacritic strip,
+ * "amelie" misses "Amélie" — nobody types the accent, and the shopper is left
+ * believing the piece doesn't exist.
+ */
+const norm = (s: string) =>
+  s
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .trim();
+
 function rankedSearch(q: string, list: Product[]): Product[] {
-  const t = q.trim().toLowerCase();
+  const t = norm(q);
   if (!t) return [];
   return list
     .map((p) => {
-      const name = p.name.toLowerCase();
-      const cat = p.category.toLowerCase();
-      const colorHit = p.colors.some((c) => c.name.toLowerCase().includes(t));
+      const name = norm(p.name);
+      const cat = norm(p.category);
+      const colorHit = p.colors.some((c) => norm(c.name).includes(t));
+      const tagHit = (p.tags ?? []).some((tg) => norm(tg.name).includes(t));
       let score = -1;
-      if (name.startsWith(t)) score = 4;
-      else if (name.includes(t)) score = 3;
-      else if (cat.includes(t)) score = 2;
-      else if (colorHit) score = 1;
+      if (name.startsWith(t)) score = 5;
+      else if (name.includes(t)) score = 4;
+      else if (cat.includes(t)) score = 3;
+      else if (colorHit) score = 2;
+      else if (tagHit) score = 1;
       return { p, score };
     })
     .filter((x) => x.score >= 0)

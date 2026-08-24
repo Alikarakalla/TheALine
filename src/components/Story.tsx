@@ -50,6 +50,7 @@ function StoryMobile() {
 
   return (
     <section
+      id="our-craft"
       data-tone="light"
       style={{
         background: "#ffffff",
@@ -173,6 +174,7 @@ function StoryDesktop() {
   return (
     <section
       ref={ref}
+      id="our-craft"
       data-tone="light"
       style={{
         background: "#ffffff",

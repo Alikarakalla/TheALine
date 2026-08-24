@@ -431,12 +431,12 @@ export default function Checkout() {
   }, [addresses]);
 
   useEffect(() => {
-    setPageMeta({
+    const __metaToken = setPageMeta({
       title: "Checkout | The A Line",
       description: "Complete your The A Line order.",
       url: window.location.origin + "/checkout",
     });
-    return () => resetPageMeta();
+    return () => resetPageMeta(__metaToken);
   }, []);
 
   // One delivery method; the fee and free-over threshold come from

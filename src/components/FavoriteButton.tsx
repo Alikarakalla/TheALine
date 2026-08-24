@@ -39,6 +39,10 @@ export default function FavoriteButton({
   return (
     <motion.button
       onClick={(e) => {
+        // This button sits inside the product card's <a>. preventDefault must
+        // happen here — stopPropagation alone keeps the ancestor handler from
+        // running, so nothing would cancel the browser's own link navigation.
+        e.preventDefault();
         e.stopPropagation();
         toggle(productId);
       }}

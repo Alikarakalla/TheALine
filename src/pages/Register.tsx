@@ -63,12 +63,12 @@ export default function Register() {
   const lastTried = useRef("");
 
   useEffect(() => {
-    setPageMeta({
+    const __metaToken = setPageMeta({
       title: "Create account | The A Line",
       description: "Create your The A Line account.",
       url: window.location.origin + "/register",
     });
-    return () => resetPageMeta();
+    return () => resetPageMeta(__metaToken);
   }, []);
 
   // 1s ticker for the expiry / resend countdowns while verifying.

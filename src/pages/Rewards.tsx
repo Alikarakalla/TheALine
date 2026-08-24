@@ -48,12 +48,12 @@ export default function Rewards() {
   const money = useBaseMoney();
 
   useEffect(() => {
-    setPageMeta({
+    const __metaToken = setPageMeta({
       title: "The A Line Circle — Rewards",
       description: "Join The A Line Circle: earn Glow Points on every order, unlock tiers, redeem rewards and refer friends.",
       url: window.location.origin + "/rewards",
     });
-    return () => resetPageMeta();
+    return () => resetPageMeta(__metaToken);
   }, []);
 
   return (

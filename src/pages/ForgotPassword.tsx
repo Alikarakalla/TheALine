@@ -23,12 +23,12 @@ export default function ForgotPassword() {
   const [resetToken, setResetToken] = useState<string | null>(null);
 
   useEffect(() => {
-    setPageMeta({
+    const __metaToken = setPageMeta({
       title: "Reset password | The A Line",
       description: "Reset your The A Line password.",
       url: window.location.origin + "/forgot-password",
     });
-    return () => resetPageMeta();
+    return () => resetPageMeta(__metaToken);
   }, []);
 
   const submit = async (e: React.FormEvent) => {
