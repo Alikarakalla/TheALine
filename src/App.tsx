@@ -1,4 +1,11 @@
-import { Routes, Route, useLocation, type Location } from "react-router-dom";
+import { useEffect } from "react";
+import {
+  Routes,
+  Route,
+  useLocation,
+  useNavigationType,
+  type Location,
+} from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { ProductNavProvider } from "./context/ProductNav";
 import { CartProvider } from "./context/Cart";
@@ -82,6 +89,38 @@ function ProductOutlet() {
   );
 }
 
+/**
+ * Open every new page at the top.
+ *
+ * A single-page app keeps the window's scroll offset across route changes, so
+ * opening a page from halfway down a long one dropped you into its middle.
+ *
+ * Deliberately narrow:
+ *  - PUSH only. Back/forward (POP) keeps the browser's position, and closing a
+ *    product returns you to the spot in the grid you left — see scrollLock.
+ *  - REPLACE is skipped: it is URL housekeeping (Shop dropping a spent
+ *    ?category=), not a new page.
+ *  - /product/* is skipped: it opens as a fixed overlay with its own scroll
+ *    container, already at its top, over a deliberately frozen page.
+ */
+function ScrollToTop() {
+  const { pathname, search } = useLocation();
+  const navType = useNavigationType();
+
+  useEffect(() => {
+    if (navType !== "PUSH") return;
+    if (pathname.startsWith("/product/")) return;
+    window.scrollTo(0, 0);
+    // A page unmounting in this same commit may restore its own scroll on the
+    // way out (the product overlay does). Re-assert next frame so the new page
+    // reliably lands at the top regardless of effect ordering.
+    const id = requestAnimationFrame(() => window.scrollTo(0, 0));
+    return () => cancelAnimationFrame(id);
+  }, [pathname, search, navType]);
+
+  return null;
+}
+
 function AppRoutes() {
   const location = useLocation();
   const state = location.state as { background?: Location } | null;
@@ -90,6 +129,8 @@ function AppRoutes() {
 
   return (
     <>
+      <ScrollToTop />
+
       {/* Base pages — render the background page while a product is open. */}
       <Routes location={background || location}>
         <Route path="/" element={<Landing />} />
