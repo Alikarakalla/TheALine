@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import { AnimatePresence } from "framer-motion";
+import { useLocation } from "react-router-dom";
 import SearchOverlay from "../components/SearchOverlay";
 
 type Ctx = { isOpen: boolean; open: () => void; close: () => void };
@@ -23,6 +24,15 @@ export function SearchProvider({ children }: { children: ReactNode }) {
   const [isOpen, setOpen] = useState(false);
   const open = useCallback(() => setOpen(true), []);
   const close = useCallback(() => setOpen(false), []);
+  const { pathname } = useLocation();
+
+  // Close on ANY route change. The overlay lives above the router, so without
+  // this it survives navigation — most visibly on a phone's Back gesture,
+  // which leaves a full-screen sheet covering the page it returned to,
+  // swallowing every tap. The page looks frozen; it is only buried.
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
 
   // Global shortcut: ⌘K / Ctrl-K (and "/" when not typing) opens search.
   useEffect(() => {

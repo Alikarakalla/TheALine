@@ -79,6 +79,49 @@ export const isSoldOut = (p: Product) => {
   if ((p.variants ?? []).some((v) => v.stock > 0)) return false;
   return (p.stock ?? 99) <= 0;
 };
+
+/** Stock verdict for one bag line, resolved against the live catalog. */
+export type LineStock = {
+  /** Units still orderable. null = the merchant doesn't track stock. */
+  maxQty: number | null;
+  /** This exact variant has nothing left — the line can't be ordered. */
+  outOfStock: boolean;
+  /** More units in the bag than remain in stock. */
+  overStock: boolean;
+};
+
+/**
+ * Availability of a saved bag line, checked against the CURRENT catalog.
+ *
+ * A line can outlive its stock: added while the variant was available, then
+ * the variant sells out. The check has to run per VARIANT — a product whose
+ * other colours are still stocked is not sold out, but the colour in the bag
+ * may well be. Zero stock and untracked stock must also stay distinct, or a
+ * sold-out variant reads as "no limit" and sails through to checkout.
+ */
+export function lineStock(
+  product: Product | undefined,
+  item: { sku?: string; colorName?: string; qty: number }
+): LineStock {
+  const none: LineStock = { maxQty: null, outOfStock: false, overStock: false };
+  // Catalog still loading / product retired — don't block on missing data.
+  if (!product) return none;
+
+  const variants = product.variants ?? [];
+  const tracked = variants.some((v) => v.stock > 0);
+  const matched =
+    (item.sku ? variants.find((v) => v.sku === item.sku) : undefined) ??
+    variants.find((v) => v.name === item.colorName);
+
+  const left = tracked && matched ? matched.stock : product.stock;
+  if (typeof left !== "number") return none;
+
+  return {
+    maxQty: Math.max(0, left),
+    outOfStock: left <= 0,
+    overStock: left > 0 && item.qty > left,
+  };
+}
 export const isLowStock = (p: Product) =>
   (p.stock ?? 99) > 0 && (p.stock ?? 99) <= LOW_STOCK_THRESHOLD;
 

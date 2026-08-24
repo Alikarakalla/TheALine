@@ -15,6 +15,7 @@ import FavoriteButton from "./FavoriteButton";
 import Header from "./Header";
 import ProductCard from "./ProductCard";
 import { setPageMeta, resetPageMeta } from "../lib/meta";
+import { lockScroll } from "../lib/scrollLock";
 import type { Product } from "../lib/products";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -602,28 +603,10 @@ export default function ProductPage() {
   // Mobile: the bottom bar expands into a variant sheet (color/size/qty).
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  // Fully lock the page behind: pin <body> so the document scrollbar disappears
-  // and restore the exact scroll on close.
-  useEffect(() => {
-    const scrollY = window.scrollY;
-    const scrollbarW = window.innerWidth - document.documentElement.clientWidth;
-    const body = document.body;
-    body.style.position = "fixed";
-    body.style.top = `-${scrollY}px`;
-    body.style.left = "0";
-    body.style.right = "0";
-    body.style.width = "100%";
-    if (scrollbarW > 0) body.style.paddingRight = `${scrollbarW}px`;
-    return () => {
-      body.style.position = "";
-      body.style.top = "";
-      body.style.left = "";
-      body.style.right = "";
-      body.style.width = "";
-      body.style.paddingRight = "";
-      window.scrollTo(0, scrollY);
-    };
-  }, []);
+  // Lock the page behind. Shared + counted: switching products keeps two of
+  // these mounted at once, and the outgoing one must not unlock the page under
+  // the incoming one (nor lose the scroll position we return to on close).
+  useEffect(() => lockScroll(), []);
 
   // Record the view for the recently-viewed rail.
   useEffect(() => {
@@ -798,7 +781,8 @@ export default function ProductPage() {
   // Product-level availability. The shop grid already veils these, but the PDP
   // has to refuse them too — otherwise a sold-out piece walks into the bag and
   // on to a COD order nobody can fulfil.
-  const soldOut = isSoldOut(product) || variantSoldOut;
+  const wholeProductSoldOut = isSoldOut(product);
+  const soldOut = wholeProductSoldOut || variantSoldOut;
   // How many units may still be ordered: the variant's stock when the merchant
   // tracks it, else the product's. Untracked stock (undefined) stays uncapped.
   const stockLeft = variantStockTracked && selectedVariant ? selectedVariant.stock : product.stock;
@@ -1059,7 +1043,9 @@ export default function ProductPage() {
 
           {/* availability — sold out is stated plainly, and a thin stock level
               nudges without manufacturing panic. */}
-          {(soldOut || (maxQty != null && maxQty <= LOW_STOCK_THRESHOLD)) && (
+          {/* A sold-out COMBINATION is already called out beside the option
+              swatches — only speak up here for the whole piece, or a low run. */}
+          {(wholeProductSoldOut || (!soldOut && maxQty != null && maxQty <= LOW_STOCK_THRESHOLD)) && (
             <motion.div
               {...block(3)}
               role="status"
@@ -1069,10 +1055,10 @@ export default function ProductPage() {
                 fontSize: 12.5,
                 fontWeight: 500,
                 letterSpacing: "0.2px",
-                color: soldOut ? "rgba(84,84,84,0.7)" : "#c0563f",
+                color: wholeProductSoldOut ? "rgba(84,84,84,0.7)" : "#c0563f",
               }}
             >
-              {soldOut
+              {wholeProductSoldOut
                 ? "Sold out — this piece is out of stock."
                 : `Only ${maxQty} left in stock.`}
             </motion.div>

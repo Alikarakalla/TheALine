@@ -10,6 +10,7 @@ import {
   curlTransition,
 } from "../lib/constants";
 import { productImageFile, type Product } from "../lib/products";
+import { lockScroll } from "../lib/scrollLock";
 import { useIsMobile } from "../lib/useResponsive";
 import { useProductNav } from "../context/ProductNav";
 import { useCatalog } from "../context/Catalog";
@@ -136,11 +137,12 @@ export default function SearchOverlay({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     const t = setTimeout(() => inputRef.current?.focus(), 450);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    // Shared counted lock — this sheet often opens ON TOP of a product page,
+    // which holds its own lock; restoring a snapshot here would release theirs.
+    const unlock = lockScroll();
     return () => {
       clearTimeout(t);
-      document.body.style.overflow = prev;
+      unlock();
     };
   }, []);
 

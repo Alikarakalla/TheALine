@@ -11,7 +11,7 @@ import { useFavorites } from "../context/Favorites";
 import { useDeliveryConfig } from "../context/SiteSettings";
 import { useMoney } from "../context/Currency";
 import { useRecentlyViewed } from "../context/RecentlyViewed";
-import { isSoldOut } from "../lib/products";
+import { isSoldOut, lineStock } from "../lib/products";
 import { setPageMeta, resetPageMeta } from "../lib/meta";
 
 /**
@@ -114,13 +114,9 @@ function LineItem({ item, index }: { item: CartItem; index: number }) {
     return c != null && c > item.price ? c : null;
   }, [matchedVariant, product, item.price]);
 
-  // Stock ceiling for this line, mirroring the PDP: per-variant when tracked,
-  // else the product's own. Catalog may still be loading — leave uncapped then.
-  const variantStockTracked = (product?.variants ?? []).some((v) => v.stock > 0);
-  const stockLeft = variantStockTracked && matchedVariant ? matchedVariant.stock : product?.stock;
-  const maxQty = typeof stockLeft === "number" && stockLeft > 0 ? stockLeft : null;
-  const overStock = maxQty != null && item.qty > maxQty;
-  const outOfStock = !!product && isSoldOut(product);
+  // Re-check this line against live stock on every render — a line added days
+  // ago can outlive the variant it points at.
+  const { maxQty, outOfStock, overStock } = lineStock(product, item);
 
   return (
     <motion.div
@@ -184,10 +180,29 @@ function LineItem({ item, index }: { item: CartItem; index: number }) {
           >
             <span>
               {outOfStock
-                ? "Out of stock — remove it to check out."
+                ? // Name the variant: the product may well still be in stock in
+                  // another colour, so "out of stock" alone reads as wrong.
+                  `${item.colorName || "This option"} is out of stock — remove it to check out.`
                 : `Only ${maxQty} left — reduce to continue.`}
             </span>
-            {overStock && !outOfStock && (
+            {outOfStock ? (
+              <button
+                onClick={() => remove(item.id)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  cursor: "pointer",
+                  fontFamily: "'Inter Tight', sans-serif",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: TEXT_COLOR,
+                  textDecoration: "underline",
+                }}
+              >
+                Remove it
+              </button>
+            ) : (
               <button
                 onClick={() => setQty(item.id, maxQty as number)}
                 style={{
@@ -297,7 +312,7 @@ export default function Cart() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const { items, subtotal } = useCart();
-  const { products } = useCatalog();
+  const { products, getById } = useCatalog();
   const { fee, freeOver } = useDeliveryConfig();
   const fmt = useMoney();
   const { ids: viewedIds } = useRecentlyViewed();
@@ -309,6 +324,29 @@ export default function Cart() {
 
   const deliveryFree = fee <= 0 || (freeOver > 0 && subtotal >= freeOver);
   const total = subtotal + (deliveryFree ? 0 : fee);
+
+  // Gate checkout on live stock. Without this a line that sold out after it was
+  // added still walks through to a cash-on-delivery order nobody can fulfil.
+  const { blocked, blockReason } = useMemo(() => {
+    const gone: string[] = [];
+    const short: string[] = [];
+    for (const i of items) {
+      const s = lineStock(getById(i.productId), i);
+      if (s.outOfStock) gone.push(`${i.name}${i.colorName ? ` (${i.colorName})` : ""}`);
+      else if (s.overStock) short.push(`${i.name}${i.colorName ? ` (${i.colorName})` : ""}`);
+    }
+    if (gone.length)
+      return {
+        blocked: true,
+        blockReason: `${gone.join(", ")} ${gone.length === 1 ? "is" : "are"} out of stock. Remove ${gone.length === 1 ? "it" : "them"} to continue.`,
+      };
+    if (short.length)
+      return {
+        blocked: true,
+        blockReason: `Not enough stock for ${short.join(", ")}. Reduce the quantity to continue.`,
+      };
+    return { blocked: false, blockReason: "" };
+  }, [items, getById]);
 
   // Cross-sell: pieces not already in the bag, led by the ones this shopper
   // actually looked at (most recent first), then the rest of the catalog.
@@ -420,10 +458,24 @@ export default function Cart() {
             >
               <div style={{ ...microLabel, marginBottom: 16 }}>Summary</div>
               <SummaryLines subtotal={subtotal} />
+              {blocked && (
+                <div role="alert" style={{ marginTop: 12, fontSize: 12.5, lineHeight: 1.6, color: "#c0563f" }}>
+                  {blockReason}
+                </div>
+              )}
               {!isMobile && (
                 <button
                   onClick={() => navigate("/checkout")}
-                  style={{ width: "100%", marginTop: 6, background: "#141414", color: "#fff", border: "none", borderRadius: 999, padding: "16px 0", cursor: "pointer", fontFamily: "'Inter Tight', sans-serif", fontSize: 14.5, fontWeight: 600 }}
+                  disabled={blocked}
+                  title={blocked ? blockReason : undefined}
+                  style={{
+                    width: "100%", marginTop: 6,
+                    background: blocked ? "rgba(84,84,84,0.18)" : "#141414",
+                    color: blocked ? "rgba(84,84,84,0.7)" : "#fff",
+                    border: "none", borderRadius: 999, padding: "16px 0",
+                    cursor: blocked ? "not-allowed" : "pointer",
+                    fontFamily: "'Inter Tight', sans-serif", fontSize: 14.5, fontWeight: 600,
+                  }}
                 >
                   Checkout — {fmt(total)}
                 </button>
@@ -500,9 +552,18 @@ export default function Cart() {
           </div>
           <button
             onClick={() => navigate("/checkout")}
-            style={{ flex: 1, background: "#141414", color: "#fff", border: "none", borderRadius: 999, height: 50, cursor: "pointer", fontFamily: "'Inter Tight', sans-serif", fontSize: 14.5, fontWeight: 600 }}
+            disabled={blocked}
+            title={blocked ? blockReason : undefined}
+            style={{
+              flex: 1,
+              background: blocked ? "rgba(84,84,84,0.18)" : "#141414",
+              color: blocked ? "rgba(84,84,84,0.7)" : "#fff",
+              border: "none", borderRadius: 999, height: 50,
+              cursor: blocked ? "not-allowed" : "pointer",
+              fontFamily: "'Inter Tight', sans-serif", fontSize: 14.5, fontWeight: 600,
+            }}
           >
-            Checkout
+            {blocked ? "Update your bag" : "Checkout"}
           </button>
         </motion.div>
       )}

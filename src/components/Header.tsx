@@ -20,6 +20,7 @@ import {
 import { useIsMobile } from "../lib/useResponsive";
 import { useCart } from "../context/Cart";
 import { useSiteSettings } from "../context/SiteSettings";
+import { lockScroll } from "../lib/scrollLock";
 import { useSearch } from "../context/Search";
 import { useAuth } from "../context/Auth";
 import { useFavorites } from "../context/Favorites";
@@ -1115,13 +1116,33 @@ export default function Header() {
     };
   }, []);
 
-  // Lock body scroll while the overlay is open.
+  // Lock body scroll while the overlay is open, via the shared counted lock —
+  // the menu can sit on top of a product page that holds its own lock, and a
+  // blanket reset here would free the page underneath it.
   useEffect(() => {
-    document.body.style.overflow = open ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
-    };
+    if (!open) return;
+    return lockScroll();
   }, [open]);
+
+  // Close on navigation. The menu outlives route changes otherwise — after a
+  // phone's Back gesture it stays spread over the page it returned to and eats
+  // every tap, which reads as the screen having frozen.
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  // `pathname` above is not enough on its own: the header behind an open
+  // product renders inside <Routes location={background}>, which pins its
+  // useLocation() to the page that launched the product — so it never observes
+  // the trip back. popstate is the browser's own event and always fires.
+  useEffect(() => {
+    const closeAll = () => {
+      setOpen(false);
+      setCatOpen(false);
+    };
+    window.addEventListener("popstate", closeAll);
+    return () => window.removeEventListener("popstate", closeAll);
+  }, []);
 
   const dark = tone === "dark";
   const fg = dark ? "#FFFFFF" : TEXT_COLOR;

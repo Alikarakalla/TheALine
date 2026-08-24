@@ -15,6 +15,8 @@ import {
 } from "../lib/constants";
 import { useIsMobile } from "../lib/useResponsive";
 import { useCart } from "../context/Cart";
+import { useCatalog } from "../context/Catalog";
+import { lineStock } from "../lib/products";
 import { useAuth } from "../context/Auth";
 import { useAddresses, type Address } from "../context/Addresses";
 import { useOrders } from "../context/Orders";
@@ -353,6 +355,7 @@ export default function Checkout() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const { items, subtotal, clear } = useCart();
+  const { getById } = useCatalog();
   const { user } = useAuth();
   const { addresses } = useAddresses();
   const { addOrder } = useOrders();
@@ -448,6 +451,11 @@ export default function Checkout() {
   const total = subtotal + shippingCost;
 
   if (items.length === 0) return <Navigate to="/cart" replace />;
+  // A line can sell out between the bag and here (or /checkout can be opened
+  // directly). Send the shopper back to fix it rather than take an order that
+  // can't be fulfilled. The bag states exactly which line is the problem.
+  if (items.some((i) => { const s = lineStock(getById(i.productId), i); return s.outOfStock || s.overStock; }))
+    return <Navigate to="/cart" replace />;
 
   const set = (k: string, v: string) => setInfo((p) => ({ ...p, [k]: v }));
   /** Editing an address field means the form no longer mirrors a saved one. */
